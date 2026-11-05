@@ -1,0 +1,157 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  googleSub     String    @unique @map("google_sub")
+  email         String    @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
+  displayName   String?   @map("display_name")
+  avatarUrl     String?   @map("avatar_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  profile       Profile?
+  documents     Document[]
+  jobPostings   JobPosting[]
+  aiAnalyses    AIAnalysis[]
+  applications  Application[]
+  usageLogs     AiUsageLog[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique @map("user_id")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline            String?
+  location            String?
+  workAuthorization   String?  @map("work_authorization")
+  targetRoles         String[] @map("target_roles")
+  industries          String[]
+  skills              String[]
+  experienceSummary   String?  @map("experience_summary") @db.Text
+  salaryPreferences   Json?    @map("salary_preferences")
+  privacyPreferences  Json?    @map("privacy_preferences")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("profiles")
+}
+
+model Document {
+  id                String    @id @default(cuid())
+  userId            String    @map("user_id")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  objectKey         String    @map("object_key")
+  originalFilename  String    @map("original_filename")
+  mimeType          String    @map("mime_type")
+  sizeBytes         Int       @map("size_bytes")
+  sha256            String
+  documentType      String    @default("CV") @map("document_type")
+  extractedText     String?   @map("extracted_text") @db.Text
+  processingStatus  String    @default("READY") @map("processing_status")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("documents")
+}
+
+model JobPosting {
+  id                 String       @id @default(cuid())
+  userId             String       @map("user_id")
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceUrl          String?      @map("source_url")
+  sourceHost         String?      @map("source_host")
+  title              String
+  company            String
+  location           String?
+  rawText            String       @map("raw_text") @db.Text
+  contentHash        String       @map("content_hash")
+  integrityStatus    String       @default("SAFE") @map("integrity_status") // SAFE, FLAGGED, REJECTED
+  integrityFindings  Json?        @map("integrity_findings")
+  fetchedAt          DateTime     @default(now()) @map("fetched_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  analyses           AIAnalysis[]
+  applications       Application[]
+
+  @@index([userId])
+  @@map("job_postings")
+}
+
+model AIAnalysis {
+  id                 String      @id @default(cuid())
+  userId             String      @map("user_id")
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId              String      @map("job_id")
+  job                JobPosting  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  analysisType       String      @map("analysis_type") // FIT_ANALYSIS, TAILOR_CV, COVER_LETTER, INTERVIEW_PREP
+  model              String
+  promptVersion      String      @map("prompt_version")
+  inputDocumentIds   String[]    @map("input_document_ids")
+  outputJson         Json        @map("output_json")
+  status             String      @default("SUCCESS") @map("status")
+  createdAt          DateTime    @default(now()) @map("created_at")
+
+  @@index([userId, jobId])
+  @@map("ai_analyses")
+}
+
+model Application {
+  id                   String      @id @default(cuid())
+  userId               String      @map("user_id")
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId                String      @map("job_id")
+  job                  JobPosting  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status               String      @default("SAVED") // SAVED, SCREENING, APPLIED, INTERVIEW, OFFER, REJECTED, WITHDRAWN, CLOSED
+  selectedDocumentIds  String[]    @map("selected_document_ids")
+  tailoredCvJson       Json?       @map("tailored_cv_json")
+  tailoredCvPdfKey     String?     @map("tailored_cv_pdf_key")
+  coverLetterMarkdown  String?     @map("cover_letter_markdown") @db.Text
+  reviewerFeedback     Json?       @map("reviewer_feedback")
+  notes                String?     @db.Text
+  appliedAt            DateTime?   @map("applied_at")
+  followUpDate         DateTime?   @map("follow_up_date")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("applications")
+}
+
+model AiUsageLog {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionType    String   @map("action_type")
+  inputTokens   Int      @default(0) @map("input_tokens")
+  outputTokens  Int      @default(0) @map("output_tokens")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("ai_usage_logs")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String   // LOGIN, UPLOAD_DOC, GENERATE_CV, DELETE_DOC, etc.
+  resourceId  String?  @map("resource_id")
+  ipAddress   String?  @map("ip_address")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
