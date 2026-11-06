@@ -13,14 +13,19 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
+  ExternalLink,
+  Flame,
+  Clock,
+  ShieldCheck,
+  TrendingUp,
 } from 'lucide-react';
-import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui';
+import { Button, Card, Badge } from '@/components/ui';
 
 export default async function DashboardPage() {
   const session = await getSession();
   if (!session) return null;
 
-  // Fetch summary stats
+  // Fetch summary stats & latest entries
   const [totalJobs, totalApplications, totalDocs, jobs, applications] = await Promise.all([
     prisma.jobPosting.count({ where: { userId: session.id } }),
     prisma.application.count({ where: { userId: session.id } }),
@@ -28,7 +33,7 @@ export default async function DashboardPage() {
     prisma.jobPosting.findMany({
       where: { userId: session.id },
       orderBy: { createdAt: 'desc' },
-      take: 5,
+      take: 6,
       include: {
         analyses: {
           where: { analysisType: 'FIT_ANALYSIS' },
@@ -43,7 +48,7 @@ export default async function DashboardPage() {
     prisma.application.findMany({
       where: { userId: session.id },
       orderBy: { updatedAt: 'desc' },
-      take: 4,
+      take: 5,
       include: { job: true },
     }),
   ]);
@@ -56,217 +61,345 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-r from-blue-600/10 via-indigo-600/5 to-transparent p-6 md:p-8">
-        <div className="max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>AI Career Strategist</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Welcome back, {session.displayName || 'Job Seeker'} 👋
-          </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Manage your opportunities from one secure dashboard. Ingest jobs safely, evaluate true fit scores, tailor ATS-optimized CVs, and practice interview Q&As.
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Precision Hero / Command Strip */}
+      <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-br from-[#0e1424] via-[#0b0f19] to-[#07090e] p-6 shadow-2xl">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-16 w-60 h-60 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
 
-        {/* Quick Actions */}
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/jobs/new">
-            <Button className="gap-2">
-              <PlusCircle className="h-4 w-4" /> Ingest New Job
-            </Button>
-          </Link>
-          <Link href="/documents">
-            <Button variant="outline" className="gap-2">
-              <UploadCloud className="h-4 w-4" /> Upload CV Vault
-            </Button>
-          </Link>
-          <Link href="/applications">
-            <Button variant="secondary" className="gap-2">
-              <Kanban className="h-4 w-4" /> Open Kanban Tracker
-            </Button>
-          </Link>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              <Sparkles className="h-3 w-3" />
+              <span>Jobies Autonomous Career Engine</span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+              Welcome back, {session.displayName || 'Candidate'}
+            </h1>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Your deterministic career console is synced. Review AI match scores grounded strictly against your CV facts, tailor ATS-optimized resumes, and practice technical interview simulations.
+            </p>
+          </div>
+
+          {/* Precision Quick Action Cluster */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <Link href="/jobs/new">
+              <Button variant="glow" className="gap-2 h-9 text-xs">
+                <PlusCircle className="h-3.5 w-3.5" /> Ingest Job Posting
+              </Button>
+            </Link>
+            <Link href="/documents">
+              <Button variant="outline" className="gap-2 h-9 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08]">
+                <UploadCloud className="h-3.5 w-3.5 text-zinc-300" /> CV Vault
+              </Button>
+            </Link>
+            <Link href="/applications">
+              <Button variant="outline" className="gap-2 h-9 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08]">
+                <Kanban className="h-3.5 w-3.5 text-indigo-400" /> Pipeline Tracker
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-5">
+      {/* Metrics Row: 4 Precision KPI Tiles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Ingested Jobs</span>
-            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <Briefcase className="h-4 w-4" />
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Tracked Jobs</span>
+            <div className="h-7 w-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center">
+              <Briefcase className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold">{totalJobs}</span>
-            <span className="text-xs text-muted-foreground">tracked</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono tracking-tight text-white">{totalJobs}</span>
+            <span className="text-[11px] text-zinc-500 font-mono">ingested</span>
           </div>
-        </Card>
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-sky-400/90 font-mono">
+            <TrendingUp className="h-3 w-3" />
+            <span>Active monitoring</span>
+          </div>
+        </div>
 
-        <Card className="p-5">
+        <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Applications</span>
-            <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-              <Kanban className="h-4 w-4" />
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Applications</span>
+            <div className="h-7 w-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+              <Kanban className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold">{totalApplications}</span>
-            <span className="text-xs text-muted-foreground">in pipeline</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono tracking-tight text-white">{totalApplications}</span>
+            <span className="text-[11px] text-zinc-500 font-mono">in flight</span>
           </div>
-        </Card>
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-indigo-400/90 font-mono">
+            <Clock className="h-3 w-3" />
+            <span>8 Kanban stages</span>
+          </div>
+        </div>
 
-        <Card className="p-5">
+        <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Interviews</span>
-            <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <CheckCircle2 className="h-4 w-4" />
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Interviews</span>
+            <div className="h-7 w-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+              <CheckCircle2 className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-amber-500">{interviewsCount}</span>
-            <span className="text-xs text-muted-foreground">active stages</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono tracking-tight text-amber-400">{interviewsCount}</span>
+            <span className="text-[11px] text-zinc-500 font-mono">scheduled</span>
           </div>
-        </Card>
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-400/90 font-mono">
+            <Flame className="h-3 w-3" />
+            <span>Ready for mock simulator</span>
+          </div>
+        </div>
 
-        <Card className="p-5">
+        <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Offers Received</span>
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <Award className="h-4 w-4" />
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Offers</span>
+            <div className="h-7 w-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <Award className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-emerald-500">{offersCount}</span>
-            <span className="text-xs text-muted-foreground">congratulations!</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono tracking-tight text-emerald-400">{offersCount}</span>
+            <span className="text-[11px] text-zinc-500 font-mono">received</span>
           </div>
-        </Card>
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400/90 font-mono">
+            <Sparkles className="h-3 w-3" />
+            <span>Goal achieved</span>
+          </div>
+        </div>
       </div>
 
-      {/* Two columns: Recent Jobs & Active Applications */}
+      {/* Main Grid: Pipeline Matrix & Active Kanbans */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Jobs (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Left Column: Recent Jobs with Fit Breakdown (2 cols) */}
+        <div className="lg:col-span-2 space-y-3.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Recent Jobs & Fit Analyses</h2>
-            <Link href="/jobs" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-              View all jobs <ArrowRight className="h-3 w-3" />
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold tracking-wide uppercase text-zinc-300 font-mono">
+                Recent Jobs & Fit Analyses
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
+                {jobs.length} shown
+              </span>
+            </div>
+            <Link
+              href="/jobs"
+              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-mono transition-colors"
+            >
+              Full Ingestion Console <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
           {jobs.length === 0 ? (
-            <Card className="p-8 text-center space-y-3">
-              <Briefcase className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-medium">No job postings ingested yet.</p>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                Paste a job description or provide a job URL to analyze candidate fit and tailor your CV.
+            <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-8 text-center space-y-3">
+              <Briefcase className="h-8 w-8 text-zinc-600 mx-auto" />
+              <p className="text-sm font-medium text-zinc-300">No job postings ingested yet.</p>
+              <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                Paste any job posting URL or raw description to trigger deterministic sanitization and Gemini match scoring.
               </p>
-              <Link href="/jobs/new">
-                <Button size="sm" className="mt-2">
+              <Link href="/jobs/new" className="inline-block pt-1">
+                <Button variant="glow" size="sm" className="h-8 text-xs">
                   Ingest First Job
                 </Button>
               </Link>
-            </Card>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {jobs.map((job) => {
                 const fitAnalysis = job.analyses[0]?.outputJson as any;
                 const fitScore = fitAnalysis?.score;
                 const app = job.applications[0];
 
                 return (
-                  <Card key={job.id} className="p-4 hover:border-primary/50 transition-all">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-sm truncate">{job.title}</h3>
-                          {job.integrityStatus === 'SAFE' ? (
-                            <Badge variant="success" className="text-[10px]">Safe</Badge>
-                          ) : job.integrityStatus === 'FLAGGED' ? (
-                            <Badge variant="warning" className="text-[10px] flex items-center gap-0.5">
-                              <AlertTriangle className="h-2.5 w-2.5" /> Flagged
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="text-[10px]">Rejected</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {job.company} {job.location ? `• ${job.location}` : ''}
-                        </p>
+                  <div
+                    key={job.id}
+                    className="group rounded-xl border border-white/[0.06] bg-[#0b0f19]/70 hover:bg-[#0e1424]/90 hover:border-sky-500/30 p-4 transition-all hover-lift flex flex-col sm:flex-row sm:items-center justify-between gap-3.5"
+                  >
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm text-zinc-100 group-hover:text-sky-300 transition-colors truncate">
+                          {job.title}
+                        </h3>
+                        {job.integrityStatus === 'SAFE' ? (
+                          <Badge variant="success" className="text-[10px] py-0 px-1.5 h-4 font-mono">
+                            Safe
+                          </Badge>
+                        ) : job.integrityStatus === 'FLAGGED' ? (
+                          <Badge variant="warning" className="text-[10px] py-0 px-1.5 h-4 font-mono flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" /> Flagged
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[10px] py-0 px-1.5 h-4 font-mono">
+                            Rejected
+                          </Badge>
+                        )}
+                        {job.sourceUrl && (
+                          <a
+                            href={job.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-500 hover:text-sky-400 transition-colors"
+                            title="Open original job posting"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        {fitScore !== undefined ? (
-                          <div className="text-right">
-                            <span className={`text-base font-bold ${fitScore >= 75 ? 'text-emerald-500' : fitScore >= 50 ? 'text-amber-500' : 'text-slate-500'}`}>
-                              {fitScore}%
-                            </span>
-                            <span className="block text-[10px] text-muted-foreground uppercase">Fit Score</span>
-                          </div>
-                        ) : (
-                          <Link href={`/jobs/${job.id}`}>
-                            <Badge variant="outline" className="text-[11px] hover:bg-secondary cursor-pointer">
-                              Not Analyzed
-                            </Badge>
-                          </Link>
+                      <div className="flex items-center gap-2 text-xs text-zinc-400">
+                        <span className="font-medium text-zinc-300">{job.company}</span>
+                        {job.location && (
+                          <>
+                            <span className="text-zinc-600">•</span>
+                            <span className="text-zinc-400">{job.location}</span>
+                          </>
                         )}
-
-                        <Link href={`/jobs/${job.id}`}>
-                          <Button variant="outline" size="sm" className="h-8">
-                            View Details
-                          </Button>
-                        </Link>
+                        <span className="text-zinc-600">•</span>
+                        <span className="text-zinc-500 font-mono text-[11px]">
+                          {new Date(job.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
                       </div>
                     </div>
-                  </Card>
+
+                    {/* Score Bar & Action */}
+                    <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end border-t sm:border-t-0 border-white/[0.05] pt-2.5 sm:pt-0">
+                      {fitScore !== undefined ? (
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="flex items-baseline justify-end gap-0.5">
+                              <span
+                                className={`text-base font-bold font-mono ${
+                                  fitScore >= 75
+                                    ? 'text-emerald-400'
+                                    : fitScore >= 50
+                                    ? 'text-amber-400'
+                                    : 'text-zinc-400'
+                                }`}
+                              >
+                                {fitScore}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 font-mono">%</span>
+                            </div>
+                            <span className="text-[9px] uppercase font-mono tracking-wider text-zinc-500 block">
+                              Fit Match
+                            </span>
+                          </div>
+                          {/* Mini progress bar */}
+                          <div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden hidden sm:block">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                fitScore >= 75
+                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                                  : fitScore >= 50
+                                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                                  : 'bg-zinc-600'
+                              }`}
+                              style={{ width: `${Math.min(100, Math.max(5, fitScore))}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] font-mono text-zinc-500 px-2 py-1 rounded bg-white/[0.03] border border-white/[0.05]">
+                          Not Analyzed
+                        </span>
+                      )}
+
+                      {app ? (
+                        <Link href={`/applications/${app.id}`}>
+                          <Button variant="outline" size="sm" className="h-8 text-xs font-mono border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.08]">
+                            Workspace →
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Link href={`/jobs/${job.id}`}>
+                          <Button variant="outline" size="sm" className="h-8 text-xs font-mono border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.08]">
+                            Analyze
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Active Pipeline column */}
-        <div className="space-y-4">
+        {/* Right Column: Active Applications Pipeline */}
+        <div className="space-y-3.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Active Pipeline</h2>
-            <Link href="/applications" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
-              Tracker <ArrowRight className="h-3 w-3" />
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold tracking-wide uppercase text-zinc-300 font-mono">
+                Active Applications
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
+                {applications.length}
+              </span>
+            </div>
+            <Link
+              href="/applications"
+              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-mono transition-colors"
+            >
+              Board <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
           {applications.length === 0 ? (
-            <Card className="p-6 text-center space-y-2">
-              <Kanban className="h-6 w-6 text-muted-foreground mx-auto" />
-              <p className="text-xs font-medium">No applications created yet.</p>
-              <p className="text-[11px] text-muted-foreground">
-                Select an analyzed job and create an application workspace to track progress.
+            <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-6 text-center space-y-2">
+              <Kanban className="h-6 w-6 text-zinc-600 mx-auto" />
+              <p className="text-xs font-medium text-zinc-300">No active applications</p>
+              <p className="text-[11px] text-zinc-500">
+                Create an application workspace from any job to tailor ATS CVs and track stages.
               </p>
-            </Card>
+            </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {applications.map((app) => (
-                <Card key={app.id} className="p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-xs truncate max-w-[180px]">
-                      {app.job.title}
-                    </span>
-                    <Badge variant={app.status === 'OFFER' ? 'success' : app.status === 'INTERVIEW' ? 'warning' : 'secondary'} className="text-[10px]">
+                <div
+                  key={app.id}
+                  className="rounded-xl border border-white/[0.06] bg-[#0b0f19]/70 hover:bg-[#0e1424]/90 hover:border-indigo-500/30 p-3.5 space-y-2.5 transition-all hover-lift"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-xs text-zinc-100 truncate">
+                        {app.job.title}
+                      </h4>
+                      <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                        {app.job.company}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        app.status === 'OFFER'
+                          ? 'success'
+                          : app.status === 'INTERVIEW'
+                          ? 'warning'
+                          : 'secondary'
+                      }
+                      className="text-[10px] font-mono uppercase px-2 py-0 h-4"
+                    >
                       {app.status}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate">{app.job.company}</p>
-                  <div className="pt-1 flex justify-end">
+
+                  <div className="pt-1 flex items-center justify-between border-t border-white/[0.04]">
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      Updated {new Date(app.updatedAt).toLocaleDateString()}
+                    </span>
                     <Link href={`/applications/${app.id}`}>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-primary">
-                        Open Workspace →
-                      </Button>
+                      <span className="text-xs font-mono text-sky-400 hover:text-sky-300 inline-flex items-center gap-1">
+                        Open Studio →
+                      </span>
                     </Link>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}

@@ -12,40 +12,41 @@
     --popover-foreground: 222 47% 11%;
     --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 95%;
     --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96.1%;
+    --muted: 210 40% 95%;
     --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96.1%;
+    --accent: 210 40% 94%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 221 83% 53%;
-    --radius: 0.75rem;
+    --radius: 0.625rem;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --card: 224 71% 6%;
-    --card-foreground: 213 31% 91%;
-    --popover: 224 71% 6%;
-    --popover-foreground: 213 31% 91%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 215 27.9% 12%;
+    /* Obsidian Precision Palette */
+    --background: 224 50% 4%;     /* #080c14 */
+    --foreground: 213 31% 94%;     /* #e2e8f0 */
+    --card: 224 45% 7%;           /* #0d1322 */
+    --card-foreground: 213 31% 94%;
+    --popover: 224 45% 7%;
+    --popover-foreground: 213 31% 94%;
+    --primary: 217 91% 60%;        /* #3b82f6 */
+    --primary-foreground: 224 50% 4%;
+    --secondary: 222 35% 12%;      /* #131b2e */
     --secondary-foreground: 210 40% 98%;
-    --muted: 215 27.9% 12%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 15%;
+    --muted: 222 35% 12%;
+    --muted-foreground: 217.9 14% 65%;
+    --accent: 222 35% 15%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 40.6%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
-    --border: 215 27.9% 15%;
-    --input: 215 27.9% 15%;
-    --ring: 224 76% 48%;
+    --border: 222 35% 15%;         /* subtle 1px border */
+    --input: 222 35% 15%;
+    --ring: 217 91% 60%;
   }
 }
 
@@ -55,34 +56,61 @@
   }
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "rlig" 1, "calt" 1;
+    letter-spacing: -0.011em;
   }
 }
 
-/* Glassmorphism subtle effects */
-.glass {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Micro-interactions & Tactile Physics (design-taste-frontend standard) */
+.hover-lift {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
 }
-.dark .glass {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+.dark .hover-lift:hover {
+  box-shadow: 0 12px 28px -5px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-/* Custom smooth scrollbar */
+.tap-press:active {
+  transform: scale(0.98);
+}
+
+/* Glassmorphism Precision */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.dark .glass-panel {
+  background: rgba(13, 19, 34, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Subtle Glowing Borders */
+.border-glow-primary {
+  box-shadow: 0 0 15px -3px rgba(59, 130, 246, 0.25);
+}
+.border-glow-emerald {
+  box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.25);
+}
+
+/* Custom Minimalist Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.25);
+  background: hsl(var(--muted-foreground) / 0.2);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.45);
+  background: hsl(var(--muted-foreground) / 0.4);
 }

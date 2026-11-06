@@ -19,8 +19,16 @@ import {
   MessageSquare,
   HelpCircle,
   ExternalLink,
+  Briefcase,
+  ChevronRight,
+  ArrowUpRight,
+  Building2,
+  MapPin,
+  Calendar,
+  Layers,
+  Terminal,
 } from 'lucide-react';
-import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, Textarea, Badge } from '@/components/ui';
+import { Button, Card, Badge, Textarea } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
 import { TailoredCvData, ReviewFeedback } from '@/lib/gemini';
 
@@ -121,20 +129,25 @@ export default function ApplicationWorkspacePage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-96 flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+        <span className="text-xs font-mono text-zinc-400">Loading Application Studio...</span>
       </div>
     );
   }
 
   if (!application) {
     return (
-      <Card className="p-8 text-center space-y-3">
-        <p className="text-sm font-medium">Application not found.</p>
-        <Link href="/applications">
-          <Button size="sm">Back to Tracker</Button>
+      <div className="rounded-xl border border-white/[0.08] bg-[#0c101d] p-12 text-center space-y-4 max-w-lg mx-auto mt-12">
+        <AlertTriangle className="h-10 w-10 text-amber-400 mx-auto" />
+        <h3 className="text-base font-semibold text-white">Application Not Found</h3>
+        <p className="text-xs text-zinc-400">
+          The requested application workspace could not be retrieved or has been removed.
+        </p>
+        <Link href="/applications" className="inline-block pt-2">
+          <Button variant="glow" size="sm">Back to Pipeline Tracker</Button>
         </Link>
-      </Card>
+      </div>
     );
   }
 
@@ -142,235 +155,341 @@ export default function ApplicationWorkspacePage() {
   const reviewerFeedback: ReviewFeedback | null = application.reviewerFeedback || null;
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Workspace Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl border border-border bg-card">
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{application.job.title}</h1>
-            <Badge variant="secondary" className="text-xs">
-              Stage: {application.status}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground flex items-center gap-2">
-            <span className="font-semibold text-foreground">{application.job.company}</span>
-            {application.job.location && <span>• {application.job.location}</span>}
-            <span>• Created {formatDate(application.createdAt)}</span>
-          </p>
-        </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Studio Header Bar */}
+      <div className="rounded-xl border border-white/[0.08] bg-gradient-to-r from-[#0c101d] via-[#0e1424] to-[#0a0d16] p-5 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-sky-400 font-semibold">
+                Application Studio
+              </span>
+              <span className="text-zinc-600">•</span>
+              <Badge
+                variant={
+                  application.status === 'OFFER'
+                    ? 'success'
+                    : application.status === 'INTERVIEW'
+                    ? 'warning'
+                    : 'secondary'
+                }
+                className="text-[10px] font-mono uppercase px-2 py-0 h-4"
+              >
+                {application.status}
+              </Badge>
+              {application.job.sourceUrl && (
+                <a
+                  href={application.job.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zinc-500 hover:text-sky-400 transition-colors inline-flex items-center gap-1 text-[11px]"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  <span>Job Posting</span>
+                </a>
+              )}
+            </div>
 
-        {/* Global Action Button */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            onClick={handleGenerateDocuments}
-            disabled={generating}
-            className="gap-2 shadow-md shadow-primary/20"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Tailoring with Facts...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" /> {tailoredCv ? 'Regenerate Documents' : 'Tailor CV & Cover Letter'}
-              </>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white truncate">
+              {application.job.title}
+            </h1>
+
+            <div className="flex items-center gap-3 text-xs text-zinc-400 flex-wrap">
+              <span className="font-medium text-zinc-200 flex items-center gap-1">
+                <Building2 className="h-3.5 w-3.5 text-zinc-500" />
+                {application.job.company}
+              </span>
+              {application.job.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-zinc-500" />
+                  {application.job.location}
+                </span>
+              )}
+              <span className="flex items-center gap-1 font-mono text-[11px] text-zinc-500">
+                <Calendar className="h-3.5 w-3.5 text-zinc-500" />
+                Created {formatDate(application.createdAt)}
+              </span>
+            </div>
+          </div>
+
+          {/* Header Action Cluster */}
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            {tailoredCv && (
+              <a href={`/api/applications/${id}/pdf`} target="_blank" rel="noreferrer">
+                <Button variant="outline" size="sm" className="gap-2 h-9 text-xs border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                  <Download className="h-3.5 w-3.5" /> Export PDF
+                </Button>
+              </a>
             )}
-          </Button>
+
+            <Button
+              onClick={handleGenerateDocuments}
+              disabled={generating}
+              variant="glow"
+              size="sm"
+              className="gap-2 h-9 text-xs"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Grounding Facts with Gemini...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {tailoredCv ? 'Regenerate Documents' : 'Tailor CV & Cover Letter'}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3 text-xs rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
-          {errorMsg}
+        <div className="p-3.5 text-xs rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center gap-2 font-mono">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Workspace Navigation Tabs */}
-      <div className="flex border-b border-border gap-3">
+      {/* High-Precision Tab Navigation */}
+      <div className="flex items-center gap-1 border-b border-white/[0.08] pb-1 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('CV')}
-          className={`flex items-center gap-2 pb-3 px-3 text-sm font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 py-2 px-3.5 text-xs font-mono uppercase tracking-wider rounded-lg transition-all ${
             activeTab === 'CV'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.03]'
           }`}
         >
-          <FileText className="h-4 w-4" /> Tailored CV (PDF)
+          <FileText className="h-3.5 w-3.5" />
+          <span>Tailored CV (ATS PDF)</span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveTab('COVER_LETTER')}
-          className={`flex items-center gap-2 pb-3 px-3 text-sm font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 py-2 px-3.5 text-xs font-mono uppercase tracking-wider rounded-lg transition-all ${
             activeTab === 'COVER_LETTER'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.03]'
           }`}
         >
-          <Copy className="h-4 w-4" /> Cover Letter (Markdown)
+          <Copy className="h-3.5 w-3.5" />
+          <span>Cover Letter (Markdown)</span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveTab('REVIEWER')}
-          className={`flex items-center gap-2 pb-3 px-3 text-sm font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 py-2 px-3.5 text-xs font-mono uppercase tracking-wider rounded-lg transition-all ${
             activeTab === 'REVIEWER'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.03]'
           }`}
         >
-          <ShieldAlert className="h-4 w-4" /> AI Fact-Check Reviewer
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>AI Fact-Check Reviewer</span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveTab('INTERVIEW')}
-          className={`flex items-center gap-2 pb-3 px-3 text-sm font-medium border-b-2 transition-all ${
+          className={`flex items-center gap-2 py-2 px-3.5 text-xs font-mono uppercase tracking-wider rounded-lg transition-all ${
             activeTab === 'INTERVIEW'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.03]'
           }`}
         >
-          <MessageSquare className="h-4 w-4" /> Interview Prep Hub
+          <Terminal className="h-3.5 w-3.5" />
+          <span>Interview Prep Hub</span>
         </button>
       </div>
 
-      {/* TAB 1: TAILORED CV (PDF) */}
+      {/* =====================================================================
+          TAB 1: TAILORED CV (SPLIT-PANE STUDIO)
+      ===================================================================== */}
       {activeTab === 'CV' && (
-        <div className="space-y-4">
+        <div>
           {!tailoredCv ? (
-            <Card className="p-10 text-center space-y-3">
-              <FileText className="h-10 w-10 text-muted-foreground mx-auto" />
-              <h3 className="text-base font-semibold">No Tailored CV Generated Yet</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+            <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-12 text-center space-y-3">
+              <FileText className="h-10 w-10 text-zinc-600 mx-auto" />
+              <h3 className="text-base font-semibold text-white">No Tailored CV Generated Yet</h3>
+              <p className="text-xs text-zinc-400 max-w-md mx-auto">
                 Generate an ATS-compliant, tailored CV specifically crafted for this {application.job.title} role based purely on your proven experience.
               </p>
-              <Button onClick={handleGenerateDocuments} disabled={generating} size="sm" className="mt-2">
+              <Button
+                onClick={handleGenerateDocuments}
+                disabled={generating}
+                variant="glow"
+                size="sm"
+                className="mt-2"
+              >
                 Generate Tailored CV Now
               </Button>
-            </Card>
+            </div>
           ) : (
-            <div className="space-y-4">
-              {/* PDF Download bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-border bg-secondary/40">
-                <div>
-                  <span className="font-semibold text-xs text-foreground block">
-                    ATS-Compliant Document Ready
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+              {/* Left Control Bar: Meta & Download */}
+              <div className="space-y-4 lg:col-span-1">
+                <div className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-4 space-y-3">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block font-semibold">
+                    Document Telemetry
                   </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    Grounded with proven facts. Formatted with @react-pdf/renderer.
-                  </span>
+                  <div className="space-y-2 text-xs font-mono">
+                    <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                      <span className="text-zinc-500">Engine</span>
+                      <span className="text-sky-400">gemini-3.8-flash</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                      <span className="text-zinc-500">Format</span>
+                      <span className="text-zinc-300">ATS Single-Col PDF</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                      <span className="text-zinc-500">Experiences</span>
+                      <span className="text-zinc-300">{tailoredCv.experiences?.length || 0} roles</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-white/[0.04]">
+                      <span className="text-zinc-500">Skills Listed</span>
+                      <span className="text-zinc-300">{tailoredCv.skills?.reduce((acc, cat) => acc + cat.items.length, 0) || 0} skills</span>
+                    </div>
+                  </div>
+
+                  <a href={`/api/applications/${id}/pdf`} target="_blank" rel="noreferrer" className="block pt-2">
+                    <Button variant="glow" className="w-full gap-2 text-xs h-9 justify-center bg-emerald-600 hover:bg-emerald-500 text-white">
+                      <Download className="h-3.5 w-3.5" /> Download ATS PDF
+                    </Button>
+                  </a>
                 </div>
-                <a href={`/api/applications/${id}/pdf`} target="_blank" rel="noreferrer">
-                  <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
-                    <Download className="h-4 w-4" /> Download ATS CV (PDF)
-                  </Button>
-                </a>
+
+                {/* Audit quick link */}
+                <div className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-4 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    <span className="text-xs font-semibold text-zinc-200">Anti-Hallucination Safe</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    Every tailored bullet point was cross-verified against your uploaded career documents.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('REVIEWER')}
+                    className="text-xs text-sky-400 hover:text-sky-300 font-mono inline-flex items-center gap-1"
+                  >
+                    View Auditor Report →
+                  </button>
+                </div>
               </div>
 
-              {/* Live Structured Document Preview */}
-              <Card className="p-8 space-y-6 bg-card border-border shadow-sm max-w-3xl mx-auto font-sans">
-                {/* Header */}
-                <div className="border-b border-primary/40 pb-4 space-y-1">
-                  <h2 className="text-2xl font-bold tracking-tight text-foreground uppercase">
-                    {tailoredCv.fullName}
-                  </h2>
-                  <p className="text-sm font-semibold text-primary">{tailoredCv.headline}</p>
-                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-1">
-                    {tailoredCv.contact.email && <span>✉ {tailoredCv.contact.email}</span>}
-                    {tailoredCv.contact.phone && <span>☎ {tailoredCv.contact.phone}</span>}
-                    {tailoredCv.contact.location && <span>📍 {tailoredCv.contact.location}</span>}
-                    {tailoredCv.contact.linkedin && <span>in: {tailoredCv.contact.linkedin}</span>}
+              {/* Right: Crisp ATS Document Canvas */}
+              <div className="lg:col-span-3">
+                <div className="rounded-xl border border-white/[0.1] bg-[#0e1424]/90 p-8 md:p-10 shadow-2xl space-y-6 max-w-3xl mx-auto font-sans text-zinc-100">
+                  {/* CV Header */}
+                  <div className="border-b border-sky-500/30 pb-4 space-y-1.5 text-center">
+                    <h2 className="text-2xl font-bold tracking-tight text-white uppercase font-sans">
+                      {tailoredCv.fullName}
+                    </h2>
+                    <p className="text-xs font-mono font-semibold text-sky-400">{tailoredCv.headline}</p>
+                    <div className="flex flex-wrap justify-center gap-3 text-[11px] text-zinc-400 pt-1 font-mono">
+                      {tailoredCv.contact.email && <span>{tailoredCv.contact.email}</span>}
+                      {tailoredCv.contact.phone && <span>• {tailoredCv.contact.phone}</span>}
+                      {tailoredCv.contact.location && <span>• {tailoredCv.contact.location}</span>}
+                      {tailoredCv.contact.linkedin && <span>• {tailoredCv.contact.linkedin}</span>}
+                    </div>
                   </div>
-                </div>
 
-                {/* Professional Summary */}
-                {tailoredCv.professionalSummary && (
-                  <div className="space-y-1.5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground border-b border-border/80 pb-1">
-                      Professional Summary
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed text-justify">
-                      {tailoredCv.professionalSummary}
-                    </p>
-                  </div>
-                )}
+                  {/* Professional Summary */}
+                  {tailoredCv.professionalSummary && (
+                    <div className="space-y-1.5">
+                      <h3 className="text-xs font-mono uppercase font-bold tracking-wider text-sky-400 border-b border-white/[0.08] pb-1">
+                        Professional Summary
+                      </h3>
+                      <p className="text-xs text-zinc-300 leading-relaxed text-justify">
+                        {tailoredCv.professionalSummary}
+                      </p>
+                    </div>
+                  )}
 
-                {/* Skills */}
-                {tailoredCv.skills && tailoredCv.skills.length > 0 && (
-                  <div className="space-y-1.5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground border-b border-border/80 pb-1">
-                      Skills & Technical Proficiencies
-                    </h3>
-                    <div className="space-y-1 text-xs">
-                      {tailoredCv.skills.map((cat, idx) => (
-                        <div key={idx} className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                          <span className="font-semibold text-foreground shrink-0 w-36">
-                            {cat.category}:
-                          </span>
-                          <span className="text-muted-foreground">{cat.items.join(', ')}</span>
+                  {/* Skills */}
+                  {tailoredCv.skills && tailoredCv.skills.length > 0 && (
+                    <div className="space-y-1.5">
+                      <h3 className="text-xs font-mono uppercase font-bold tracking-wider text-sky-400 border-b border-white/[0.08] pb-1">
+                        Skills &amp; Technical Proficiencies
+                      </h3>
+                      <div className="space-y-1.5 text-xs">
+                        {tailoredCv.skills.map((cat, idx) => (
+                          <div key={idx} className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                            <span className="font-semibold text-zinc-200 shrink-0 w-36 font-mono text-[11px]">
+                              {cat.category}:
+                            </span>
+                            <span className="text-zinc-300">{cat.items.join(', ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Work Experience */}
+                  {tailoredCv.experiences && tailoredCv.experiences.length > 0 && (
+                    <div className="space-y-3.5">
+                      <h3 className="text-xs font-mono uppercase font-bold tracking-wider text-sky-400 border-b border-white/[0.08] pb-1">
+                        Work Experience (Targeted Achievements)
+                      </h3>
+                      {tailoredCv.experiences.map((exp, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-baseline justify-between text-xs flex-wrap gap-1">
+                            <span className="font-semibold text-white">
+                              {exp.role} <span className="font-normal text-zinc-500">|</span>{' '}
+                              <span className="text-sky-300">{exp.company}</span>
+                            </span>
+                            <span className="text-zinc-500 font-mono text-[11px]">
+                              {exp.startDate} – {exp.endDate}
+                            </span>
+                          </div>
+                          <ul className="list-disc pl-5 text-xs text-zinc-300 space-y-1 leading-relaxed">
+                            {exp.bulletPoints.map((pt, pIdx) => (
+                              <li key={pIdx}>{pt}</li>
+                            ))}
+                          </ul>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Work Experience */}
-                {tailoredCv.experiences && tailoredCv.experiences.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground border-b border-border/80 pb-1">
-                      Work Experience (Tailored Achievements)
-                    </h3>
-                    {tailoredCv.experiences.map((exp, idx) => (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-baseline justify-between text-xs">
-                          <span className="font-semibold text-foreground">
-                            {exp.role} <span className="font-normal text-muted-foreground">|</span>{' '}
-                            <span className="text-primary">{exp.company}</span>
+                  {/* Education */}
+                  {tailoredCv.education && tailoredCv.education.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-mono uppercase font-bold tracking-wider text-sky-400 border-b border-white/[0.08] pb-1">
+                        Education
+                      </h3>
+                      {tailoredCv.education.map((edu, idx) => (
+                        <div key={idx} className="flex justify-between text-xs text-zinc-300">
+                          <span>
+                            <strong className="text-white">{edu.degree}</strong> in {edu.field},{' '}
+                            {edu.institution}
                           </span>
-                          <span className="text-muted-foreground text-[11px]">
-                            {exp.startDate} – {exp.endDate}
-                          </span>
+                          <span className="font-mono text-zinc-500">{edu.gradYear}</span>
                         </div>
-                        <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
-                          {exp.bulletPoints.map((pt, pIdx) => (
-                            <li key={pIdx}>{pt}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Education */}
-                {tailoredCv.education && tailoredCv.education.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground border-b border-border/80 pb-1">
-                      Education
-                    </h3>
-                    {tailoredCv.education.map((edu, idx) => (
-                      <div key={idx} className="flex justify-between text-xs text-muted-foreground">
-                        <span>
-                          <strong className="text-foreground">{edu.degree}</strong> in {edu.field},{' '}
-                          {edu.institution}
-                        </span>
-                        <span>{edu.gradYear}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* TAB 2: COVER LETTER (MARKDOWN) */}
+      {/* =====================================================================
+          TAB 2: COVER LETTER (MARKDOWN DUAL-PANE EDITOR)
+      ===================================================================== */}
       {activeTab === 'COVER_LETTER' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/[0.08] bg-[#0c101d]">
             <div>
-              <h3 className="text-sm font-semibold">Tailored Cover Letter (Full-text Markdown)</h3>
-              <p className="text-xs text-muted-foreground">
-                Edit directly in markdown or copy to clipboard for your job portal submission.
+              <h3 className="text-sm font-semibold text-white">Tailored Cover Letter (Full-text Markdown)</h3>
+              <p className="text-xs text-zinc-400">
+                Edit directly in markdown or copy to clipboard for your job application submission.
               </p>
             </div>
 
@@ -380,49 +499,54 @@ export default function ApplicationWorkspacePage() {
                 size="sm"
                 onClick={handleCopyCoverLetter}
                 disabled={!coverLetterText}
-                className="gap-1.5"
+                className="gap-1.5 h-8 text-xs border-white/[0.1] bg-white/[0.02]"
               >
-                {copiedCoverLetter ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                {copiedCoverLetter ? 'Copied!' : 'Copy to Clipboard'}
+                {copiedCoverLetter ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                <span>{copiedCoverLetter ? 'Copied to Clipboard!' : 'Copy Letter'}</span>
               </Button>
 
               <Button
+                variant="glow"
                 size="sm"
                 onClick={handleSaveNotesAndCoverLetter}
                 disabled={savingNotes}
-                className="gap-1.5"
+                className="gap-1.5 h-8 text-xs"
               >
                 {savingNotes ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                Save Changes
+                <span>Save Changes</span>
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Markdown Source Editor */}
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Markdown Editor
+              <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-semibold block">
+                Source Markdown Editor
               </span>
               <Textarea
                 rows={18}
                 value={coverLetterText}
                 onChange={(e) => setCoverLetterText(e.target.value)}
-                placeholder="Generate or write your markdown cover letter here..."
-                className="font-mono text-xs leading-relaxed"
+                placeholder="Click 'Tailor CV & Cover Letter' above to generate your tailored cover letter..."
+                className="font-mono text-xs leading-relaxed border-white/[0.08] bg-[#0b0f19] text-zinc-200 focus:border-sky-500/50"
               />
             </div>
 
             {/* Live Markdown Preview */}
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Live Preview
+              <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-semibold block">
+                Rendered Preview
               </span>
-              <div className="p-5 rounded-lg border border-border bg-card min-h-[380px] max-h-[460px] overflow-y-auto text-xs leading-relaxed text-foreground prose dark:prose-invert">
+              <div className="p-6 rounded-xl border border-white/[0.08] bg-[#0c101d] min-h-[380px] max-h-[460px] overflow-y-auto text-xs leading-relaxed text-zinc-200 prose prose-invert prose-p:my-2 prose-headings:text-sky-400">
                 {coverLetterText ? (
                   <ReactMarkdown>{coverLetterText}</ReactMarkdown>
                 ) : (
-                  <p className="text-muted-foreground italic">
+                  <p className="text-zinc-500 italic">
                     Click &quot;Tailor CV &amp; Cover Letter&quot; above to generate your tailored cover letter.
                   </p>
                 )}
@@ -432,22 +556,25 @@ export default function ApplicationWorkspacePage() {
         </div>
       )}
 
-      {/* TAB 3: DUAL-PASS AI REVIEWER */}
+      {/* =====================================================================
+          TAB 3: DUAL-PASS AI REVIEWER (ANTI-HALLUCINATION AUDITOR)
+      ===================================================================== */}
       {activeTab === 'REVIEWER' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/[0.08] bg-[#0c101d]">
             <div>
-              <h3 className="text-sm font-semibold">Dual-Pass Fact Checker & ATS Readability</h3>
-              <p className="text-xs text-muted-foreground">
-                A second independent AI pass cross-checks the tailored application against your original source CV to prevent unsupported claims and hallucinations.
+              <h3 className="text-sm font-semibold text-white">Dual-Pass Fact Checker &amp; ATS Audit</h3>
+              <p className="text-xs text-zinc-400">
+                An independent second Gemini AI pass audits tailored documents against your source CV to prevent false claims.
               </p>
             </div>
 
             <Button
               onClick={handleRunReviewer}
               disabled={reviewing || !tailoredCv}
+              variant="glow"
               size="sm"
-              className="gap-1.5"
+              className="gap-2 h-8 text-xs shrink-0"
             >
               {reviewing ? (
                 <>
@@ -462,112 +589,133 @@ export default function ApplicationWorkspacePage() {
           </div>
 
           {!reviewerFeedback ? (
-            <Card className="p-8 text-center space-y-2">
-              <ShieldAlert className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm font-medium">Fact-check review not run yet</p>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Run the audit to verify that no fabricated metrics, false certifications, or inaccurate job titles exist in the tailored resume.
+            <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-10 text-center space-y-2">
+              <ShieldAlert className="h-8 w-8 text-zinc-600 mx-auto" />
+              <p className="text-sm font-medium text-zinc-300">Fact-Check Review Not Run Yet</p>
+              <p className="text-xs text-zinc-500 max-w-md mx-auto">
+                Trigger the reviewer to inspect every sentence for unsupported metrics, exaggerated responsibilities, or unverified tools.
               </p>
-            </Card>
+            </div>
           ) : (
             <div className="space-y-4">
-              {/* ATS & Claims summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 space-y-1">
-                  <span className="text-xs text-muted-foreground">Estimated ATS Match</span>
-                  <div className="text-2xl font-bold text-primary">
+              {/* ATS Score & Tone Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-4 space-y-1">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
+                    Estimated ATS Match
+                  </span>
+                  <div className="text-3xl font-bold font-mono text-sky-400">
                     {reviewerFeedback.atsScoreEstimate}%
                   </div>
-                </Card>
+                </div>
 
-                <Card className="p-4 space-y-1 md:col-span-2">
-                  <span className="text-xs text-muted-foreground">Tone & Professional Impression</span>
-                  <p className="text-xs text-foreground font-medium">{reviewerFeedback.toneFeedback}</p>
-                </Card>
+                <div className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-4 space-y-1 md:col-span-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
+                    Tone &amp; Professional Impression
+                  </span>
+                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                    {reviewerFeedback.toneFeedback}
+                  </p>
+                </div>
               </div>
 
-              {/* Unsupported Claims Alert */}
-              <Card className="border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-xs uppercase tracking-wider font-bold text-foreground flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" /> Unsupported Claims & Hallucination Checks
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2.5">
-                  {reviewerFeedback.unsupportedClaims && reviewerFeedback.unsupportedClaims.length > 0 ? (
-                    reviewerFeedback.unsupportedClaims.map((claim, idx) => (
-                      <div key={idx} className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs space-y-1">
-                        <span className="font-semibold text-destructive block">Claim: &quot;{claim.claim}&quot;</span>
-                        <p className="text-muted-foreground">Reason: {claim.reason}</p>
-                        <p className="text-emerald-500 font-medium">Suggested Fix: {claim.suggestedFix}</p>
+              {/* Unsupported Claims Alert Card */}
+              <div className="rounded-xl border border-white/[0.08] bg-[#0c101d] p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs font-mono uppercase font-bold tracking-wider text-zinc-200">
+                    Unsupported Claims &amp; Grounding Verification
+                  </span>
+                </div>
+
+                {reviewerFeedback.unsupportedClaims && reviewerFeedback.unsupportedClaims.length > 0 ? (
+                  <div className="space-y-2">
+                    {reviewerFeedback.unsupportedClaims.map((claim, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs space-y-1.5"
+                      >
+                        <span className="font-semibold text-rose-400 block">
+                          Claim: &quot;{claim.claim}&quot;
+                        </span>
+                        <p className="text-zinc-400">Reason: {claim.reason}</p>
+                        <p className="text-emerald-400 font-medium">Suggested Fix: {claim.suggestedFix}</p>
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Zero unsupported claims detected. All bullet points are faithfully grounded in your source CV!</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>Zero unsupported claims detected! All bullet points are grounded in your source CV facts.</span>
+                  </div>
+                )}
+              </div>
 
               {/* Strengths & Improvement Suggestions */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <Card className="p-4 space-y-2">
-                  <span className="font-bold uppercase tracking-wider text-emerald-500 block">
+                <div className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-4 space-y-2">
+                  <span className="font-mono uppercase text-[11px] tracking-wider text-emerald-400 font-semibold block">
                     Document Strengths
                   </span>
-                  <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  <ul className="list-disc pl-5 space-y-1 text-zinc-300">
                     {reviewerFeedback.strengths?.map((s, i) => (
                       <li key={i}>{s}</li>
                     ))}
                   </ul>
-                </Card>
+                </div>
 
-                <Card className="p-4 space-y-2">
-                  <span className="font-bold uppercase tracking-wider text-amber-500 block">
-                    Suggested Improvements
+                <div className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-4 space-y-2">
+                  <span className="font-mono uppercase text-[11px] tracking-wider text-amber-400 font-semibold block">
+                    Actionable Improvements
                   </span>
-                  <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  <ul className="list-disc pl-5 space-y-1 text-zinc-300">
                     {reviewerFeedback.improvementSuggestions?.map((s, i) => (
                       <li key={i}>{s}</li>
                     ))}
                   </ul>
-                </Card>
+                </div>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* TAB 4: INTERVIEW PREP */}
+      {/* =====================================================================
+          TAB 4: INTERVIEW PREP HUB
+      ===================================================================== */}
       {activeTab === 'INTERVIEW' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-white/[0.08] bg-[#0c101d]">
             <div>
-              <h3 className="text-sm font-semibold">Interview Strategy & Questions Pack</h3>
-              <p className="text-xs text-muted-foreground">
-                Prepare for technical and behavioral rounds tailored specifically to this role.
+              <h3 className="text-sm font-semibold text-white">Interview Strategy &amp; Practice Room</h3>
+              <p className="text-xs text-zinc-400">
+                Technical, behavioral, and STAR methodology questions prepared for this role.
               </p>
             </div>
 
             <Link href={`/interview/${id}`}>
-              <Button size="sm" className="gap-1.5">
-                <MessageSquare className="h-4 w-4" /> Launch Interactive Mock Interview Chat
+              <Button variant="glow" size="sm" className="gap-2 h-8 text-xs">
+                <Terminal className="h-3.5 w-3.5" /> Launch Interactive Interview
               </Button>
             </Link>
           </div>
 
-          <Card className="p-6 text-center space-y-3">
-            <MessageSquare className="h-8 w-8 text-primary mx-auto" />
-            <h4 className="text-base font-semibold">Practice with the AI Interview Coach</h4>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              Simulate real-time interview scenarios. The AI asks questions based on this job specification, evaluates your STAR responses, and gives constructive feedback.
+          <div className="rounded-xl border border-white/[0.08] bg-[#0b0f19] p-8 text-center space-y-3 max-w-xl mx-auto">
+            <div className="h-12 w-12 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center mx-auto">
+              <Terminal className="h-6 w-6" />
+            </div>
+            <h4 className="text-base font-semibold text-white">Simulate Live Technical Round</h4>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Experience dynamic AI interrogation customized for this {application.job.title} role. Gemini will evaluate your STAR answers in real-time, test your technical depth, and grade your responses.
             </p>
-            <Link href={`/interview/${id}`}>
-              <Button className="mt-2">Open Mock Interview Room</Button>
-            </Link>
-          </Card>
+            <div className="pt-2">
+              <Link href={`/interview/${id}`}>
+                <Button variant="glow" size="sm" className="gap-2 text-xs">
+                  Enter Mock Room →
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       )}
     </div>

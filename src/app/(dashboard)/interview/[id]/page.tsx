@@ -14,8 +14,13 @@ import {
   Bot,
   User,
   Shield,
+  Terminal,
+  Zap,
+  Target,
+  Building2,
+  BookOpen,
 } from 'lucide-react';
-import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, Input, Badge } from '@/components/ui';
+import { Button, Card, Badge } from '@/components/ui';
 import { InterviewPrepData } from '@/lib/gemini';
 
 interface ChatMessage {
@@ -70,7 +75,7 @@ export default function MockInterviewPage() {
           setMessages([
             {
               role: 'interviewer',
-              text: `Hello! Thank you for meeting with us today regarding the ${application?.job?.title} position at ${application?.job?.company}. To begin, could you answer this: "${firstQ}"?`,
+              text: `Hello! Thank you for meeting with us today regarding the ${application?.job?.title} position at ${application?.job?.company}.\n\nTo begin our technical screen, could you walk us through: "${firstQ}"?`,
             },
           ]);
         }
@@ -91,13 +96,13 @@ export default function MockInterviewPage() {
     setSending(true);
 
     try {
-      // Simulate interviewer evaluation & follow-up
+      // Simulate interviewer evaluation & follow-up with grounded insight
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
           {
             role: 'interviewer',
-            text: `Thank you for sharing that structured context. You clearly demonstrated your problem-solving approach. As a follow-up question: "Can you elaborate on how you handled cross-functional collaboration and tradeoffs during that initiative?"`,
+            text: `Excellent. You articulated the Situation and Action clearly. From an engineering standpoint, what metrics or quantitative benchmarks did you use to evaluate success, and what would you do differently in retrospect?`,
           },
         ]);
         setSending(false);
@@ -109,26 +114,37 @@ export default function MockInterviewPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-96 flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+        <span className="text-xs font-mono text-zinc-400">Loading Interview Simulator...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-white/[0.08] bg-[#0c101d]">
         <div className="flex items-center gap-3">
           <Link href={`/applications/${id}`}>
-            <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Button variant="outline" size="icon" className="h-8 w-8 border-white/[0.1] bg-white/[0.02] text-zinc-400 hover:text-white">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Interview Preparation & Mock Room</h1>
-            <p className="text-xs text-muted-foreground">
-              {application?.job?.title} at {application?.job?.company}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-sky-400 font-semibold">
+                Mock Simulator
+              </span>
+              <span className="text-zinc-600">•</span>
+              <span className="text-[11px] font-mono text-zinc-400">Grounded Interview Engine</span>
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-white">
+              {application?.job?.title}
+            </h1>
+            <p className="text-xs text-zinc-400 flex items-center gap-1.5">
+              <Building2 className="h-3 w-3 text-zinc-500" />
+              <span>{application?.job?.company}</span>
             </p>
           </div>
         </div>
@@ -136,16 +152,17 @@ export default function MockInterviewPage() {
         <Button
           onClick={handleGeneratePrep}
           disabled={generatingPrep}
+          variant="glow"
           size="sm"
-          className="gap-1.5"
+          className="gap-2 h-8 text-xs shrink-0"
         >
           {generatingPrep ? (
             <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing Guide...
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Synthesizing Strategy...
             </>
           ) : (
             <>
-              <Sparkles className="h-3.5 w-3.5" /> {prepData ? 'Refresh Guide' : 'Generate Interview Guide'}
+              <Sparkles className="h-3.5 w-3.5" /> {prepData ? 'Refresh Questions' : 'Generate Guide'}
             </>
           )}
         </Button>
@@ -153,71 +170,82 @@ export default function MockInterviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Side: Strategy Guide Cards (5 cols) */}
-        <div className="lg:col-span-5 space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+        <div className="lg:col-span-5 space-y-4 max-h-[76vh] overflow-y-auto pr-1">
           {!prepData ? (
-            <Card className="p-6 text-center space-y-2">
-              <HelpCircle className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-xs font-semibold">No questions generated yet</p>
-              <p className="text-[11px] text-muted-foreground">
-                Click &quot;Generate Interview Guide&quot; above to predict likely questions and STAR answers.
+            <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-8 text-center space-y-2">
+              <HelpCircle className="h-8 w-8 text-zinc-600 mx-auto" />
+              <p className="text-xs font-semibold text-zinc-300">No Interview Guide Generated Yet</p>
+              <p className="text-[11px] text-zinc-500">
+                Click &quot;Generate Guide&quot; above to predict likely questions, STAR answer templates, and honesty bridges.
               </p>
-            </Card>
+            </div>
           ) : (
             <>
-              {/* Role Summary */}
+              {/* Role Strategic Focus */}
               {prepData.roleOverviewSummary && (
-                <Card className="p-4 bg-secondary/30 text-xs space-y-1">
-                  <span className="font-bold text-foreground block">Role Strategic Focus</span>
-                  <p className="text-muted-foreground leading-relaxed">
+                <div className="rounded-xl border border-white/[0.08] bg-[#0c101d] p-4 text-xs space-y-1.5 shadow-sm">
+                  <span className="font-mono uppercase text-[10px] tracking-wider font-semibold text-sky-400 block">
+                    Role Strategic Focus
+                  </span>
+                  <p className="text-zinc-300 leading-relaxed">
                     {prepData.roleOverviewSummary}
                   </p>
-                </Card>
+                </div>
               )}
 
               {/* Behavioral Questions with STAR */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Behavioral STAR Mapping
-                </h3>
+                <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-sky-400 flex items-center gap-1.5">
+                  <Target className="h-3.5 w-3.5" /> Behavioral STAR Mapping
+                </span>
                 {prepData.behavioralQuestions?.map((q, idx) => (
-                  <Card key={idx} className="p-3.5 space-y-2 text-xs">
-                    <span className="font-semibold text-foreground block">Q: {q.question}</span>
-                    <div className="p-2.5 rounded bg-secondary/50 text-muted-foreground space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-emerald-500 block">
+                  <div
+                    key={idx}
+                    className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-3.5 space-y-2 text-xs hover-lift"
+                  >
+                    <span className="font-semibold text-zinc-200 block">Q: {q.question}</span>
+                    <div className="p-2.5 rounded-lg bg-[#07090e] border border-white/[0.04] text-zinc-400 space-y-1 font-mono text-[11px]">
+                      <span className="text-[10px] uppercase font-bold text-emerald-400 block">
                         Suggested STAR Strategy
                       </span>
-                      <p>{q.suggestedStarAnswer}</p>
+                      <p className="text-zinc-300 leading-relaxed">{q.suggestedStarAnswer}</p>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
 
               {/* Technical Questions */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Technical Architecture Questions
-                </h3>
+                <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-indigo-400 flex items-center gap-1.5">
+                  <Terminal className="h-3.5 w-3.5" /> Technical Architecture
+                </span>
                 {prepData.technicalQuestions?.map((q, idx) => (
-                  <Card key={idx} className="p-3.5 space-y-2 text-xs">
-                    <span className="font-semibold text-foreground block">Q: {q.question}</span>
-                    <p className="text-muted-foreground">{q.context}</p>
-                  </Card>
+                  <div
+                    key={idx}
+                    className="rounded-xl border border-white/[0.07] bg-[#0c101d] p-3.5 space-y-1.5 text-xs hover-lift"
+                  >
+                    <span className="font-semibold text-zinc-200 block">Q: {q.question}</span>
+                    <p className="text-zinc-400 leading-relaxed text-[11px]">{q.context}</p>
+                  </div>
                 ))}
               </div>
 
               {/* Honesty Bridges */}
               {prepData.identifiedGapsAndBridges?.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-500">
-                    Honesty Bridges for Gaps
-                  </h3>
+                  <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-amber-400 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" /> Honesty Bridges for Gaps
+                  </span>
                   {prepData.identifiedGapsAndBridges.map((item, idx) => (
-                    <Card key={idx} className="p-3 rounded bg-amber-500/5 border-amber-500/20 text-xs space-y-1">
-                      <span className="font-semibold text-amber-600 dark:text-amber-400 block">
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 text-xs space-y-1.5"
+                    >
+                      <span className="font-semibold text-amber-300 block">
                         Potential Gap: {item.gap}
                       </span>
-                      <p className="text-muted-foreground">{item.honestBridgeStrategy}</p>
-                    </Card>
+                      <p className="text-zinc-300 leading-relaxed text-[11px]">{item.honestBridgeStrategy}</p>
+                    </div>
                   ))}
                 </div>
               )}
@@ -226,31 +254,35 @@ export default function MockInterviewPage() {
         </div>
 
         {/* Right Side: Interactive Mock Interview Chat (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col h-[75vh] rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          {/* Chat Header */}
-          <div className="p-3.5 border-b border-border bg-secondary/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                AI
+        <div className="lg:col-span-7 flex flex-col h-[76vh] rounded-xl border border-white/[0.08] bg-[#0c101d] shadow-2xl overflow-hidden">
+          {/* Terminal Simulator Header */}
+          <div className="p-3.5 border-b border-white/[0.08] bg-[#0f1526] flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">
+                <Bot className="h-4 w-4" />
               </div>
               <div>
-                <span className="font-semibold text-xs text-foreground block">Hiring Manager Simulator</span>
-                <span className="text-[10px] text-muted-foreground block">Grounded Interview Practice</span>
+                <span className="font-semibold text-xs text-white block">AI Technical Interviewer</span>
+                <span className="text-[10px] font-mono text-zinc-400 block">Grounded Persona Active</span>
               </div>
             </div>
-            <Badge variant="outline" className="text-[10px]">
-              Text Simulation
-            </Badge>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400 uppercase">Live Session</span>
+            </div>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3 text-xs leading-relaxed">
+          <div className="flex-1 p-4 overflow-y-auto space-y-3.5 text-xs leading-relaxed bg-[#07090e]">
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 text-muted-foreground">
-                <MessageSquare className="h-8 w-8 text-muted-foreground" />
-                <p className="font-medium text-foreground">Interactive Practice Room</p>
-                <p className="text-[11px] max-w-sm">
-                  Generate the interview guide or type &quot;Ready to begin&quot; below to start your mock interview.
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3 text-zinc-500">
+                <MessageSquare className="h-8 w-8 text-zinc-600" />
+                <p className="font-semibold text-sm text-zinc-300">Mock Room Ready</p>
+                <p className="text-xs max-w-sm text-zinc-500">
+                  Click &quot;Generate Guide&quot; above to begin the technical conversation, or type a greeting below.
                 </p>
               </div>
             ) : (
@@ -260,32 +292,32 @@ export default function MockInterviewPage() {
                   className={`flex gap-2.5 ${msg.role === 'candidate' ? 'justify-end' : 'justify-start'}`}
                 >
                   {msg.role === 'interviewer' && (
-                    <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="h-4 w-4" />
+                    <div className="h-7 w-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Bot className="h-3.5 w-3.5" />
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[85%] p-3 rounded-xl whitespace-pre-wrap ${
+                    className={`max-w-[85%] p-3.5 rounded-xl whitespace-pre-wrap leading-relaxed shadow-sm ${
                       msg.role === 'candidate'
-                        ? 'bg-primary text-primary-foreground rounded-tr-none'
-                        : 'bg-secondary text-foreground rounded-tl-none border border-border/60'
+                        ? 'bg-sky-600 text-white rounded-tr-none'
+                        : 'bg-[#0f1526] text-zinc-200 rounded-tl-none border border-white/[0.08]'
                     }`}
                   >
                     {msg.text}
                   </div>
 
                   {msg.role === 'candidate' && (
-                    <div className="h-7 w-7 rounded-full bg-secondary text-foreground flex items-center justify-center shrink-0 mt-0.5 border border-border">
-                      <User className="h-4 w-4" />
+                    <div className="h-7 w-7 rounded-lg bg-white/[0.08] text-white flex items-center justify-center shrink-0 mt-0.5 border border-white/[0.1]">
+                      <User className="h-3.5 w-3.5" />
                     </div>
                   )}
                 </div>
               ))
             )}
             {sending && (
-              <div className="flex gap-2 items-center text-muted-foreground text-[11px]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <div className="flex gap-2 items-center text-zinc-500 text-[11px] font-mono">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-400" />
                 <span>Interviewer is evaluating your response...</span>
               </div>
             )}
@@ -293,15 +325,21 @@ export default function MockInterviewPage() {
           </div>
 
           {/* Chat Input Bar */}
-          <form onSubmit={handleSendMessage} className="p-3 border-t border-border bg-card flex gap-2">
-            <Input
+          <form onSubmit={handleSendMessage} className="p-3 border-t border-white/[0.08] bg-[#0c101d] flex gap-2">
+            <input
               placeholder="Type your answer using the STAR format (Situation, Task, Action, Result)..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               disabled={sending}
-              className="text-xs h-10"
+              className="h-10 flex-1 rounded-lg border border-white/[0.08] bg-[#07090e] px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/50"
             />
-            <Button type="submit" disabled={sending || !inputText.trim()} size="icon" className="h-10 w-10 shrink-0">
+            <Button
+              type="submit"
+              disabled={sending || !inputText.trim()}
+              variant="glow"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+            >
               <Send className="h-4 w-4" />
             </Button>
           </form>
