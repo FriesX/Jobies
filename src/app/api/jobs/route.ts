@@ -18,7 +18,15 @@ export async function GET() {
         take: 1,
       },
       applications: {
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          status: true,
+          tailoredCvJson: true,
+          coverLetterMarkdown: true,
+          reviewerFeedback: true,
+          notes: true,
+          updatedAt: true,
+        },
       },
     },
   });

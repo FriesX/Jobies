@@ -4,8 +4,8 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 const apiKey = process.env.GEMINI_API_KEY || 'placeholder-gemini-key';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Pinned model: gemini-2.5-flash or gemini-1.5-flash
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+// Active official model: gemini-3.8-flash
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 export interface FitAnalysisResult {
   score: number;

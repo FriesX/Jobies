@@ -92,7 +92,7 @@ ${profile?.experienceSummary || ''}
         userId: session.id,
         jobId: application.jobId,
         analysisType: 'TAILOR_DOCUMENTS',
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3.8-flash',
         promptVersion: '1.0.0',
         inputDocumentIds: sourceCv ? [sourceCv.id] : [],
         outputJson: { tailoredCv, hasCoverLetter: true } as any,

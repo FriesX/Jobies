@@ -79,7 +79,7 @@ ${latestCv?.extractedText ? `\n--- SOURCE CV DOCUMENT (${latestCv.originalFilena
         userId: session.id,
         jobId: job.id,
         analysisType: 'FIT_ANALYSIS',
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3.8-flash',
         promptVersion: '1.0.0',
         inputDocumentIds: latestCv ? [latestCv.id] : [],
         outputJson: analysisResult as any,
