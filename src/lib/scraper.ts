@@ -19,6 +19,40 @@ export interface ScrapedBatchResult {
 }
 
 /**
+ * Normalizes input URL (auto-adds https:// if missing)
+ */
+export function normalizeUserUrl(rawUrl: string): string {
+  let url = rawUrl.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  return url;
+}
+
+/**
+ * Checks if target URL is just a generic homepage without job details
+ */
+export function isGenericHomepage(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(normalizeUserUrl(rawUrl));
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const path = parsed.pathname.replace(/\/+$/, '');
+
+    // Pure root domain (e.g. linkedin.com, glints.com, jobstreet.com)
+    if (path === '' || path === '/') return true;
+
+    // Generic portal landing without search query or job ID
+    if (host.includes('linkedin.com') && (path === '/jobs' || path === '/jobs/') && !parsed.search) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resolves local browser executable for Windows/macOS development
  */
 function getLocalExecutablePath(): string | null {
@@ -51,7 +85,6 @@ function getLocalExecutablePath(): string | null {
 function cleanJobUrl(rawUrl: string, baseUrl: string): string {
   try {
     const parsed = new URL(rawUrl, baseUrl);
-    // Keep only essential parameters
     const clean = new URL(parsed.origin + parsed.pathname);
     return clean.toString();
   } catch {
@@ -63,7 +96,15 @@ function cleanJobUrl(rawUrl: string, baseUrl: string): string {
  * Headless Browser Scraper for Single Jobs & Multi-Job Search Listings (up to 25 items per search)
  */
 export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<ScrapedBatchResult> {
-  const safeUrl = await validateSafeUrl(targetUrl);
+  const normalized = normalizeUserUrl(targetUrl);
+
+  if (isGenericHomepage(normalized)) {
+    throw new Error(
+      'URL yang dimasukkan adalah halaman utama (bukan lowongan spesifik atau hasil pencarian). Silakan masukkan link lowongan spesifik (contoh: linkedin.com/jobs/view/...) atau link pencarian (contoh: linkedin.com/jobs/search?keywords=Frontend).'
+    );
+  }
+
+  const safeUrl = await validateSafeUrl(normalized);
   const urlStr = safeUrl.toString();
   const warnings: string[] = [];
 
@@ -309,12 +350,12 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
     warnings.push(`Headless browser fallback: ${err?.message || 'Execution error'}`);
   }
 
-  // Fallback to Web Reader
+  // Fallback to Web Reader (Jina Reader & Advanced Parser)
   return await scrapeWithWebReaderFallback(urlStr, safeUrl.hostname, warnings);
 }
 
 /**
- * Fallback Web Reader (Jina Reader & Direct Fetch)
+ * Fallback Web Reader (Jina Reader with Regex Extraction)
  */
 async function scrapeWithWebReaderFallback(
   urlStr: string,
@@ -326,7 +367,7 @@ async function scrapeWithWebReaderFallback(
   try {
     const jinaUrl = `https://r.jina.ai/${urlStr}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 14000);
 
     const res = await fetch(jinaUrl, {
       signal: controller.signal,
@@ -341,19 +382,49 @@ async function scrapeWithWebReaderFallback(
     if (res.ok) {
       const markdown = await res.text();
       if (markdown && markdown.length > 100) {
-        // Check if multiple job links exist in markdown
-        const jobLinkRegex = /\[([^\]]+)\]\((https:\/\/[^)]*linkedin\.com\/jobs\/view\/[^)]+)\)/g;
-        const matches = [...markdown.matchAll(jobLinkRegex)];
+        // Advanced LinkedIn Search Card Extraction:
+        // Pattern: [Title](URL) ... #### [Company](...) \n Location
+        const searchListingRegex =
+          /\[([^\]]+)\]\((https:\/\/[^)]*linkedin\.com\/jobs\/view\/[^)]+)\)[\s\S]*?####\s*\[([^\]]+)\][^\n]*\n\s*([^\n]+)/g;
+        const matches = [...markdown.matchAll(searchListingRegex)];
 
         if (matches.length >= 2) {
           const jobs: ScrapedJobItem[] = matches.slice(0, 25).map((m) => {
             const rawTitle = m[1].trim();
-            const jobUrl = m[2].split('?')[0]; // clean link
+            const jobUrl = m[2].split('?')[0]; // clean link without tracking params
+            const company = m[3].trim();
+            const rawLocation = m[4].replace(/Actively Hiring|\d+\s+(day|week|month|hour)s?\s+ago/gi, '').trim();
+
+            return {
+              title: rawTitle,
+              company,
+              location: rawLocation || undefined,
+              sourceUrl: jobUrl,
+              rawText: `Posisi: ${rawTitle}\nPerusahaan: ${company}\nLokasi: ${rawLocation}\nLink Postingan: ${jobUrl}\nSumber: ${urlStr}`,
+            };
+          });
+
+          return {
+            isListing: true,
+            jobs,
+            isAuthWall: false,
+            warnings,
+          };
+        }
+
+        // Generic fallback for any job links in markdown
+        const jobLinkRegex = /\[([^\]]+)\]\((https:\/\/[^)]*linkedin\.com\/jobs\/view\/[^)]+)\)/g;
+        const simpleMatches = [...markdown.matchAll(jobLinkRegex)];
+
+        if (simpleMatches.length >= 2) {
+          const jobs: ScrapedJobItem[] = simpleMatches.slice(0, 25).map((m) => {
+            const rawTitle = m[1].trim();
+            const jobUrl = m[2].split('?')[0];
             return {
               title: rawTitle,
               company: hostname,
               sourceUrl: jobUrl,
-              rawText: `Job Posting: ${rawTitle}\nDirect Link: ${jobUrl}\nSource: ${urlStr}`,
+              rawText: `Posisi: ${rawTitle}\nLink Lowongan: ${jobUrl}\nSumber: ${urlStr}`,
             };
           });
 
