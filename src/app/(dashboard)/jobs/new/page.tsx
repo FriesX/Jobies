@@ -148,18 +148,18 @@ export default function NewJobPage() {
             {tab === 'URL' && (
               <div className="space-y-1.5">
                 <label className="text-xs font-mono uppercase tracking-wider text-zinc-300 font-semibold block">
-                  Target Job URL
+                  Target Job or Search URL
                 </label>
                 <input
                   type="url"
-                  placeholder="https://www.linkedin.com/jobs/view/... or https://careers.company.com/job/123"
+                  placeholder="https://www.linkedin.com/jobs/search?keywords=frontend atau https://www.linkedin.com/jobs/view/..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
                   className="h-10 w-full rounded-lg border border-white/[0.08] bg-[#07090e] px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-sky-500/50 font-mono"
                 />
-                <p className="text-[11px] text-zinc-500 font-mono">
-                  Guarded by SSRF Shield: Private IP ranges and cloud metadata endpoints are strictly blocked.
+                <p className="text-[11px] text-zinc-400 font-mono">
+                  Mendukung link lowongan tunggal maupun halaman daftar/pencarian (otomatis mengekstrak hingga 25 lowongan per baris dengan link postingannya).
                 </p>
               </div>
             )}

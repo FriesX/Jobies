@@ -3,11 +3,17 @@ import chromium from '@sparticuz/chromium';
 import fs from 'fs';
 import { validateSafeUrl } from '@/lib/security/ssrf';
 
-export interface ScrapedJobData {
+export interface ScrapedJobItem {
   title: string;
   company: string;
   location?: string;
+  sourceUrl: string;
   rawText: string;
+}
+
+export interface ScrapedBatchResult {
+  isListing: boolean;
+  jobs: ScrapedJobItem[];
   isAuthWall: boolean;
   warnings?: string[];
 }
@@ -40,9 +46,23 @@ function getLocalExecutablePath(): string | null {
 }
 
 /**
- * Headless Browser Scraper for Dynamic / SPA / Anti-Bot Protected Job Postings
+ * Clean URL parameters (strips tracking query strings)
  */
-export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<ScrapedJobData> {
+function cleanJobUrl(rawUrl: string, baseUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl, baseUrl);
+    // Keep only essential parameters
+    const clean = new URL(parsed.origin + parsed.pathname);
+    return clean.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+/**
+ * Headless Browser Scraper for Single Jobs & Multi-Job Search Listings (up to 25 items per search)
+ */
+export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<ScrapedBatchResult> {
   const safeUrl = await validateSafeUrl(targetUrl);
   const urlStr = safeUrl.toString();
   const warnings: string[] = [];
@@ -73,7 +93,6 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
 
       const page = await browser.newPage();
 
-      // Mask automation signatures
       await page.setUserAgent(
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
       );
@@ -82,13 +101,12 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
       });
 
-      // Navigate to target URL with 20s timeout
       await page.goto(urlStr, {
         waitUntil: 'domcontentloaded',
-        timeout: 20000,
+        timeout: 22000,
       });
 
-      // Give dynamic SPAs 2.5s to mount hydrated components
+      // Allow JavaScript frameworks & cards to render
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
       const pageUrl = page.url();
@@ -98,15 +116,93 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
         pageUrl.includes('/checkpoint') ||
         pageUrl.includes('/captcha');
 
-      // Extract structured metadata & text from rendered DOM
-      const extracted = await page.evaluate(() => {
-        // 1. Title detection
+      // Detect if this is a Multi-Job Search / Listing page
+      const batchData = await page.evaluate((currentUrl) => {
+        // Look for multiple job card items (LinkedIn, JobStreet, Indeed, etc.)
+        const cardSelectors = [
+          'ul.jobs-search__results-list li',
+          '.base-card',
+          '.job-search-card',
+          '[data-entity-urn*="jobPosting"]',
+          '.job-card-container',
+          '.job-card',
+          'article.job',
+        ];
+
+        let foundCards: Element[] = [];
+        for (const sel of cardSelectors) {
+          const els = Array.from(document.querySelectorAll(sel));
+          if (els.length >= 2) {
+            foundCards = els;
+            break;
+          }
+        }
+
+        // If multiple job cards detected (up to 25 items)
+        if (foundCards.length >= 2) {
+          const items: Array<{
+            title: string;
+            company: string;
+            location: string;
+            link: string;
+            description: string;
+          }> = [];
+
+          for (const card of foundCards.slice(0, 25)) {
+            const titleEl =
+              card.querySelector('.base-search-card__title') ||
+              card.querySelector('h3') ||
+              card.querySelector('.job-card-list__title') ||
+              card.querySelector('a');
+
+            const linkEl =
+              card.querySelector('a.base-card__full-link') ||
+              card.querySelector('a[href*="/jobs/view/"]') ||
+              card.querySelector('a[href*="/job/"]') ||
+              card.querySelector('a');
+
+            const companyEl =
+              card.querySelector('.base-search-card__subtitle') ||
+              card.querySelector('.job-card-container__company-name') ||
+              card.querySelector('h4');
+
+            const locationEl =
+              card.querySelector('.job-search-card__location') ||
+              card.querySelector('.job-card-container__metadata-item') ||
+              card.querySelector('.location');
+
+            const title = titleEl?.textContent?.trim() || '';
+            const link = (linkEl as HTMLAnchorElement)?.href || currentUrl;
+            const company = companyEl?.textContent?.trim() || '';
+            const location = locationEl?.textContent?.trim() || '';
+            const snippet = card.textContent?.replace(/\s+/g, ' ').trim() || '';
+
+            if (title && title.length > 2) {
+              items.push({
+                title,
+                company,
+                location,
+                link,
+                description: `${title} at ${company || 'Company'}\nLocation: ${location}\nSource: ${link}\n\n${snippet}`,
+              });
+            }
+          }
+
+          if (items.length > 0) {
+            return {
+              isListing: true,
+              items,
+              singleJob: null,
+            };
+          }
+        }
+
+        // Single Job Page Extraction
         const metaOgTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
         const h1 = document.querySelector('h1')?.textContent?.trim();
         const docTitle = document.title?.trim();
         const title = metaOgTitle || h1 || docTitle || 'Job Opportunity';
 
-        // 2. Company detection
         const metaOgSite = document.querySelector('meta[property="og:site_name"]')?.getAttribute('content');
         const companyEl =
           document.querySelector('[data-company-name="true"]')?.textContent?.trim() ||
@@ -114,15 +210,12 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
           document.querySelector('.employer-name')?.textContent?.trim();
         const company = companyEl || metaOgSite || '';
 
-        // 3. Location detection
         const locationEl =
           document.querySelector('.topcard__flavor--bullet')?.textContent?.trim() ||
           document.querySelector('[data-location="true"]')?.textContent?.trim() ||
           document.querySelector('.location')?.textContent?.trim();
         const location = locationEl || '';
 
-        // 4. Job Description Text Extraction
-        // Search for targeted job description container
         const descriptionSelectors = [
           '.show-more-less-html__markup',
           '#job-details',
@@ -143,45 +236,69 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
           }
         }
 
-        // Fallback to full body text if specific container wasn't matched
         if (!bodyText || bodyText.length < 150) {
           const clone = document.body.cloneNode(true) as HTMLElement;
-          // Remove scripts, styles, navigations, footers
           clone.querySelectorAll('script, style, noscript, nav, footer, header, svg').forEach((el) => el.remove());
           bodyText = clone.textContent?.replace(/\s+/g, ' ').trim() || '';
         }
 
-        // OpenGraph description fallback
         const metaOgDesc = document.querySelector('meta[property="og:description"]')?.getAttribute('content');
 
         return {
-          title,
-          company,
-          location,
-          bodyText,
-          metaOgDesc,
+          isListing: false,
+          items: [],
+          singleJob: {
+            title,
+            company,
+            location,
+            bodyText,
+            metaOgDesc,
+          },
         };
-      });
+      }, urlStr);
 
       await browser.close();
       browser = null;
 
-      let finalRawText = extracted.bodyText;
-      if (isAuthWall) {
-        warnings.push('Situs ini menampilkan halaman login/authwall (misal LinkedIn privat).');
-        if (extracted.metaOgDesc) {
-          finalRawText = `${extracted.title}\n\n${extracted.metaOgDesc}\n\n(Catatan: Halaman ini membatasi bot dengan login wall. Untuk deskripsi lengkap, salin dan tempel di tab 'Paste Description')`;
-        }
+      if (batchData.isListing && batchData.items.length > 0) {
+        return {
+          isListing: true,
+          jobs: batchData.items.map((it) => ({
+            title: it.title,
+            company: it.company || safeUrl.hostname,
+            location: it.location || undefined,
+            sourceUrl: cleanJobUrl(it.link, urlStr),
+            rawText: it.description,
+          })),
+          isAuthWall,
+          warnings,
+        };
       }
 
-      return {
-        title: extracted.title,
-        company: extracted.company || safeUrl.hostname,
-        location: extracted.location || undefined,
-        rawText: finalRawText,
-        isAuthWall,
-        warnings,
-      };
+      if (batchData.singleJob) {
+        let finalRawText = batchData.singleJob.bodyText;
+        if (isAuthWall) {
+          warnings.push('Situs ini menampilkan authwall/login.');
+          if (batchData.singleJob.metaOgDesc) {
+            finalRawText = `${batchData.singleJob.title}\n\n${batchData.singleJob.metaOgDesc}\n\n(Catatan: Halaman ini membatasi bot dengan login wall)`;
+          }
+        }
+
+        return {
+          isListing: false,
+          jobs: [
+            {
+              title: batchData.singleJob.title,
+              company: batchData.singleJob.company || safeUrl.hostname,
+              location: batchData.singleJob.location || undefined,
+              sourceUrl: cleanJobUrl(urlStr, urlStr),
+              rawText: finalRawText,
+            },
+          ],
+          isAuthWall,
+          warnings,
+        };
+      }
     }
   } catch (err: any) {
     if (browser) {
@@ -189,25 +306,24 @@ export async function scrapeJobWithHeadlessBrowser(targetUrl: string): Promise<S
         await browser.close();
       } catch {}
     }
-    warnings.push(`Headless browser fallback: ${err?.message || 'Error running browser'}`);
+    warnings.push(`Headless browser fallback: ${err?.message || 'Execution error'}`);
   }
 
-  // Fallback: AI Web Reader Proxy (Jina Reader) + Standard HTTP Fetch
+  // Fallback to Web Reader
   return await scrapeWithWebReaderFallback(urlStr, safeUrl.hostname, warnings);
 }
 
 /**
- * High-reliability fallback reader using standard fetch + Jina AI Reader
+ * Fallback Web Reader (Jina Reader & Direct Fetch)
  */
 async function scrapeWithWebReaderFallback(
   urlStr: string,
   hostname: string,
   existingWarnings: string[]
-): Promise<ScrapedJobData> {
+): Promise<ScrapedBatchResult> {
   const warnings = [...existingWarnings];
 
   try {
-    // Attempt Jina Reader (renders SPAs and converts to clean readable markdown text)
     const jinaUrl = `https://r.jina.ai/${urlStr}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
@@ -225,29 +341,53 @@ async function scrapeWithWebReaderFallback(
     if (res.ok) {
       const markdown = await res.text();
       if (markdown && markdown.length > 100) {
-        // Extract title from first markdown header
+        // Check if multiple job links exist in markdown
+        const jobLinkRegex = /\[([^\]]+)\]\((https:\/\/[^)]*linkedin\.com\/jobs\/view\/[^)]+)\)/g;
+        const matches = [...markdown.matchAll(jobLinkRegex)];
+
+        if (matches.length >= 2) {
+          const jobs: ScrapedJobItem[] = matches.slice(0, 25).map((m) => {
+            const rawTitle = m[1].trim();
+            const jobUrl = m[2].split('?')[0]; // clean link
+            return {
+              title: rawTitle,
+              company: hostname,
+              sourceUrl: jobUrl,
+              rawText: `Job Posting: ${rawTitle}\nDirect Link: ${jobUrl}\nSource: ${urlStr}`,
+            };
+          });
+
+          return {
+            isListing: true,
+            jobs,
+            isAuthWall: false,
+            warnings,
+          };
+        }
+
         const titleMatch = markdown.match(/^#\s+(.+)$/m) || markdown.match(/Title:\s*(.+)/i);
         const title = titleMatch ? titleMatch[1].trim() : `Job Posting from ${hostname}`;
 
-        const isAuthWall =
-          markdown.toLowerCase().includes('authwall') ||
-          markdown.toLowerCase().includes('sign in to view') ||
-          markdown.toLowerCase().includes('security verification');
-
         return {
-          title,
-          company: hostname,
-          rawText: markdown,
-          isAuthWall,
+          isListing: false,
+          jobs: [
+            {
+              title,
+              company: hostname,
+              sourceUrl: urlStr,
+              rawText: markdown,
+            },
+          ],
+          isAuthWall: markdown.toLowerCase().includes('authwall'),
           warnings,
         };
       }
     }
   } catch {
-    warnings.push('Reader proxy fallback failed; falling back to direct HTML fetch.');
+    warnings.push('Web reader proxy fallback failed; attempting direct fetch.');
   }
 
-  // Final direct fetch fallback
+  // Final direct fetch
   const directRes = await fetch(urlStr, {
     headers: {
       'User-Agent':
@@ -260,10 +400,16 @@ async function scrapeWithWebReaderFallback(
   const title = titleMatch ? titleMatch[1].trim() : `Job Posting from ${hostname}`;
 
   return {
-    title,
-    company: hostname,
-    rawText: html,
-    isAuthWall: html.includes('authwall') || html.includes('captcha'),
+    isListing: false,
+    jobs: [
+      {
+        title,
+        company: hostname,
+        sourceUrl: urlStr,
+        rawText: html,
+      },
+    ],
+    isAuthWall: html.includes('authwall'),
     warnings,
   };
 }

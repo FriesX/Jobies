@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { inspectPostingIntegrity } from '@/lib/security/posting-guard';
 import { checkAiQuota, logAiUsage, recordAuditLog } from '@/lib/quota';
-import { scrapeJobWithHeadlessBrowser } from '@/lib/scraper';
+import { scrapeJobWithHeadlessBrowser, ScrapedJobItem } from '@/lib/scraper';
 import { analyzeJobFit } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
@@ -17,37 +17,41 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { url, rawText, title, company, location, autoAnalyze = true } = body;
 
-    let contentToInspect = '';
-    let resolvedTitle = title || '';
-    let resolvedCompany = company || '';
-    let resolvedLocation = location || '';
-    let sourceHost: string | null = null;
-    let sourceUrl: string | null = null;
+    let itemsToIngest: ScrapedJobItem[] = [];
+    let isListing = false;
     let isAuthWall = false;
     let warnings: string[] = [];
 
     if (url) {
-      sourceUrl = url;
       try {
-        const parsedUrl = new URL(url);
-        sourceHost = parsedUrl.hostname;
+        new URL(url);
       } catch {
         return NextResponse.json({ error: 'Invalid URL provided.' }, { status: 400 });
       }
 
-      // Execute Headless Browser Dynamic Scraping
+      // Execute Multi-Job Scraper
       const scraped = await scrapeJobWithHeadlessBrowser(url);
-      contentToInspect = scraped.rawText;
+      itemsToIngest = scraped.jobs;
+      isListing = scraped.isListing;
       isAuthWall = scraped.isAuthWall;
       warnings = scraped.warnings || [];
 
-      if (!resolvedTitle) resolvedTitle = scraped.title;
-      if (!resolvedCompany) resolvedCompany = scraped.company;
-      if (!resolvedLocation && scraped.location) resolvedLocation = scraped.location;
+      // If user provided manual title/company override for single job
+      if (!isListing && itemsToIngest.length === 1) {
+        if (title) itemsToIngest[0].title = title;
+        if (company) itemsToIngest[0].company = company;
+        if (location) itemsToIngest[0].location = location;
+      }
     } else if (rawText) {
-      contentToInspect = rawText;
-      if (!resolvedTitle) resolvedTitle = 'Untitled Opportunity';
-      if (!resolvedCompany) resolvedCompany = 'Undisclosed Employer';
+      itemsToIngest = [
+        {
+          title: title || 'Untitled Opportunity',
+          company: company || 'Undisclosed Employer',
+          location: location || undefined,
+          sourceUrl: '',
+          rawText,
+        },
+      ];
     } else {
       return NextResponse.json(
         { error: 'Either a job URL or pasted job text must be provided.' },
@@ -55,84 +59,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Run Deterministic Posting Safety Gate (PRD Section 5.4)
-    const integrity = inspectPostingIntegrity(contentToInspect);
-
-    // Compute content hash
-    const contentHash = crypto
-      .createHash('sha256')
-      .update(integrity.cleanedText)
-      .digest('hex');
-
-    // Check duplicate within user's library
-    const existing = await prisma.jobPosting.findFirst({
-      where: {
-        userId: session.id,
-        contentHash,
-      },
-      include: {
-        analyses: {
-          where: { analysisType: 'FIT_ANALYSIS' },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json({
-        job: existing,
-        duplicate: true,
-        message: 'This job description has already been ingested into your library.',
-      });
+    if (itemsToIngest.length === 0) {
+      return NextResponse.json(
+        { error: 'No job postings could be extracted from the provided URL.' },
+        { status: 422 }
+      );
     }
 
-    // Save job posting
-    const job = await prisma.jobPosting.create({
-      data: {
-        userId: session.id,
-        sourceUrl,
-        sourceHost,
-        title: resolvedTitle,
-        company: resolvedCompany,
-        location: resolvedLocation || null,
-        rawText: integrity.cleanedText,
-        contentHash,
-        integrityStatus: integrity.status,
-        integrityFindings: integrity.findings,
-      },
-    });
+    // Prepare Candidate Facts for Auto-Analysis
+    let candidateFacts = '';
+    let latestCvId: string | null = null;
+    let quotaRemaining = 0;
 
-    await recordAuditLog({
-      userId: session.id,
-      action: 'INGEST_JOB',
-      resourceId: job.id,
-      metadata: {
-        jobId: job.id,
-        sourceUrl,
-        sourceHost,
-        integrityStatus: integrity.status,
-        isAuthWall,
-      },
-    });
+    if (autoAnalyze) {
+      const quota = await checkAiQuota(session.id);
+      quotaRemaining = quota.remaining;
 
-    // Auto-Run Gemini Fit Analysis if eligible and quota permits
-    let fitAnalysis = null;
-    if (autoAnalyze && job.integrityStatus !== 'REJECTED') {
-      try {
-        const quota = await checkAiQuota(session.id);
-        if (quota.allowed) {
-          // Fetch candidate facts
-          const profile = await prisma.profile.findUnique({
-            where: { userId: session.id },
-          });
+      if (quota.allowed) {
+        const profile = await prisma.profile.findUnique({
+          where: { userId: session.id },
+        });
 
-          const latestCv = await prisma.document.findFirst({
-            where: { userId: session.id, documentType: 'CV', processingStatus: 'READY' },
-            orderBy: { createdAt: 'desc' },
-          });
+        const latestCv = await prisma.document.findFirst({
+          where: { userId: session.id, documentType: 'CV', processingStatus: 'READY' },
+          orderBy: { createdAt: 'desc' },
+        });
 
-          const candidateFacts = `
+        latestCvId = latestCv?.id || null;
+
+        candidateFacts = `
 Name: ${session.displayName || 'Candidate'}
 Headline: ${profile?.headline || 'Professional'}
 Location: ${profile?.location || 'Not specified'}
@@ -142,7 +97,70 @@ Skills: ${profile?.skills?.join(', ') || 'Not specified'}
 Profile Summary: ${profile?.experienceSummary || ''}
 ${latestCv?.extractedText ? `\n--- SOURCE CV DOCUMENT (${latestCv.originalFilename}) ---\n${latestCv.extractedText.slice(0, 10000)}` : ''}
 `;
+      }
+    }
 
+    const createdJobs: any[] = [];
+    const MAX_AUTO_ANALYZE = isListing ? 3 : 1; // Smart batching: auto-analyze top 3 jobs for search listings
+
+    for (let i = 0; i < itemsToIngest.length; i++) {
+      const item = itemsToIngest[i];
+
+      // Run Deterministic Safety Gate
+      const integrity = inspectPostingIntegrity(item.rawText);
+
+      // Compute content hash
+      const contentHash = crypto
+        .createHash('sha256')
+        .update(integrity.cleanedText)
+        .digest('hex');
+
+      // Check duplicate within user's library
+      const existing = await prisma.jobPosting.findFirst({
+        where: {
+          userId: session.id,
+          contentHash,
+        },
+        include: {
+          analyses: {
+            where: { analysisType: 'FIT_ANALYSIS' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      if (existing) {
+        createdJobs.push(existing);
+        continue;
+      }
+
+      // Save new JobPosting record
+      let sourceHost: string | null = null;
+      if (item.sourceUrl) {
+        try {
+          sourceHost = new URL(item.sourceUrl).hostname;
+        } catch {}
+      }
+
+      const job = await prisma.jobPosting.create({
+        data: {
+          userId: session.id,
+          sourceUrl: item.sourceUrl || null,
+          sourceHost,
+          title: item.title,
+          company: item.company,
+          location: item.location || null,
+          rawText: integrity.cleanedText,
+          contentHash,
+          integrityStatus: integrity.status,
+          integrityFindings: integrity.findings,
+        },
+      });
+
+      // Auto-analyze top candidate jobs if quota allows
+      if (candidateFacts && i < MAX_AUTO_ANALYZE && quotaRemaining > 0 && job.integrityStatus !== 'REJECTED') {
+        try {
           const analysisResult = await analyzeJobFit({
             candidateProfile: candidateFacts,
             jobTitle: job.title,
@@ -150,14 +168,14 @@ ${latestCv?.extractedText ? `\n--- SOURCE CV DOCUMENT (${latestCv.originalFilena
             jobRawText: job.rawText,
           });
 
-          fitAnalysis = await prisma.aIAnalysis.create({
+          await prisma.aIAnalysis.create({
             data: {
               userId: session.id,
               jobId: job.id,
               analysisType: 'FIT_ANALYSIS',
               model: 'gemini-3.8-flash',
               promptVersion: '1.0.0',
-              inputDocumentIds: latestCv ? [latestCv.id] : [],
+              inputDocumentIds: latestCvId ? [latestCvId] : [],
               outputJson: analysisResult as any,
               status: 'SUCCESS',
             },
@@ -169,16 +187,32 @@ ${latestCv?.extractedText ? `\n--- SOURCE CV DOCUMENT (${latestCv.originalFilena
             inputTokens: Math.ceil(candidateFacts.length / 4) + Math.ceil(job.rawText.length / 4),
             outputTokens: 500,
           });
+
+          quotaRemaining--;
+        } catch (aiErr) {
+          console.error(`Auto fit analysis error for job ${job.id}:`, aiErr);
         }
-      } catch (aiErr: any) {
-        console.error('Auto fit analysis error:', aiErr);
       }
+
+      createdJobs.push(job);
     }
+
+    await recordAuditLog({
+      userId: session.id,
+      action: 'INGEST_JOBS_BATCH',
+      metadata: {
+        totalExtracted: itemsToIngest.length,
+        totalSaved: createdJobs.length,
+        isListing,
+        sourceUrl: url || null,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      job,
-      fitAnalysis,
+      jobs: createdJobs,
+      count: createdJobs.length,
+      isListing,
       isAuthWall,
       warnings,
     });

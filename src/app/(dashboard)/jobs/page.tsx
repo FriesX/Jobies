@@ -285,6 +285,20 @@ export default function JobsDensityTablePage() {
                           {job.title}
                         </span>
 
+                        {job.sourceUrl && (
+                          <a
+                            href={job.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-colors"
+                            title="Buka link postingan lowongan kerja asli"
+                          >
+                            <ExternalLink className="h-2.5 w-2.5" />
+                            <span>Link Lowongan</span>
+                          </a>
+                        )}
+
                         {job.integrityStatus === 'SAFE' ? (
                           <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                             <ShieldCheck className="h-2.5 w-2.5" /> Safe
