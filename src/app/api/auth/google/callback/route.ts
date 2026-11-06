@@ -5,13 +5,21 @@ import { jwtVerify, createRemoteJWKSet } from 'jose';
 
 const GOOGLE_CERTS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 
+function getBaseUrl(): string {
+  let url = (process.env.NEXTAUTH_URL || 'http://localhost:3000').trim().replace(/\/+$/, '');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  return url;
+}
+
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const code = searchParams.get('code');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
-  const appBaseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const appBaseUrl = getBaseUrl();
 
   if (error) {
     return NextResponse.redirect(`${appBaseUrl}/login?error=${encodeURIComponent(error)}`);
