@@ -18,8 +18,31 @@ import {
   Clock,
   ShieldCheck,
   TrendingUp,
+  Zap,
 } from 'lucide-react';
 import { Button, Card, Badge } from '@/components/ui';
+import { WorkflowVideoShowcase } from '@/components/dashboard/WorkflowVideoShowcase';
+
+function getDashboardPortalBadge(sourceHost: string | null, sourceUrl: string | null) {
+  const host = (sourceHost || '').toLowerCase();
+  const url = (sourceUrl || '').toLowerCase();
+  if (host.includes('linkedin') || url.includes('linkedin.com')) {
+    return { label: 'LinkedIn', color: 'bg-blue-500/10 text-blue-400 border-blue-500/25' };
+  }
+  if (host.includes('glints') || url.includes('glints.com')) {
+    return { label: 'Glints', color: 'bg-red-500/10 text-red-400 border-red-500/25' };
+  }
+  if (host.includes('jobstreet') || url.includes('jobstreet.co')) {
+    return { label: 'JobStreet', color: 'bg-amber-500/10 text-amber-400 border-amber-500/25' };
+  }
+  if (host.includes('indeed') || url.includes('indeed.com')) {
+    return { label: 'Indeed', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/25' };
+  }
+  if (url.startsWith('http')) {
+    return { label: 'Company Web', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' };
+  }
+  return { label: 'Manual Entry', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/25' };
+}
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -61,52 +84,55 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
       {/* Precision Hero / Command Strip */}
-      <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-br from-[#0e1424] via-[#0b0f19] to-[#07090e] p-6 shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0e1424] via-[#0b0f19] to-[#07090e] p-6 lg:p-7 shadow-2xl">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 -mb-16 w-60 h-60 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20">
-              <Sparkles className="h-3 w-3" />
-              <span>Jobies Autonomous Career Engine</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20 font-semibold">
+              <Zap className="h-3.5 w-3.5" />
+              <span>Jobies Autonomous Career Engine v2.5</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
               Welcome back, {session.displayName || 'Candidate'}
             </h1>
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Your deterministic career console is synced. Review AI match scores grounded strictly against your CV facts, tailor ATS-optimized resumes, and practice technical interview simulations.
+            <p className="text-xs md:text-sm text-zinc-300 leading-relaxed">
+              Console karir otonom Anda telah tersinkronisasi. Cari lowongan otomatis dari Glints, LinkedIn, JobStreet, atau website karir perusahaan, ukur kecocokan CV berbasis fakta, dan generate resume ATS kustom secara instan.
             </p>
           </div>
 
-          {/* Precision Quick Action Cluster */}
+          {/* Quick Action Cluster */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <Link href="/jobs/new">
-              <Button variant="glow" className="gap-2 h-9 text-xs">
-                <PlusCircle className="h-3.5 w-3.5" /> Ingest Job Posting
+              <Button variant="glow" className="gap-2 h-10 px-4 text-xs font-semibold shadow-lg">
+                <PlusCircle className="h-4 w-4" /> Cari &amp; Scrape Lowongan
+              </Button>
+            </Link>
+            <Link href="/jobs">
+              <Button variant="outline" className="gap-2 h-10 px-4 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08]">
+                <Briefcase className="h-4 w-4 text-sky-400" /> Matrix Tracker
               </Button>
             </Link>
             <Link href="/documents">
-              <Button variant="outline" className="gap-2 h-9 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08]">
-                <UploadCloud className="h-3.5 w-3.5 text-zinc-300" /> CV Vault
-              </Button>
-            </Link>
-            <Link href="/applications">
-              <Button variant="outline" className="gap-2 h-9 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08]">
-                <Kanban className="h-3.5 w-3.5 text-indigo-400" /> Pipeline Tracker
+              <Button variant="outline" className="gap-2 h-10 px-4 text-xs border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08]">
+                <UploadCloud className="h-4 w-4 text-zinc-300" /> CV Vault
               </Button>
             </Link>
           </div>
         </div>
       </div>
 
+      {/* INTERACTIVE VIDEO SHOWCASE & WORKFLOW TOUR */}
+      <WorkflowVideoShowcase />
+
       {/* Metrics Row: 4 Precision KPI Tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Tracked Jobs</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-semibold">Tracked Jobs</span>
             <div className="h-7 w-7 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center">
               <Briefcase className="h-3.5 w-3.5" />
             </div>
@@ -117,20 +143,20 @@ export default async function DashboardPage() {
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-sky-400/90 font-mono">
             <TrendingUp className="h-3 w-3" />
-            <span>Active monitoring</span>
+            <span>Multi-portal sync</span>
           </div>
         </div>
 
         <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Applications</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-semibold">Applications</span>
             <div className="h-7 w-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
               <Kanban className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-2xl font-bold font-mono tracking-tight text-white">{totalApplications}</span>
-            <span className="text-[11px] text-zinc-500 font-mono">in flight</span>
+            <span className="text-[11px] text-zinc-500 font-mono">active</span>
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-indigo-400/90 font-mono">
             <Clock className="h-3 w-3" />
@@ -140,7 +166,7 @@ export default async function DashboardPage() {
 
         <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Interviews</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-semibold">Interviews</span>
             <div className="h-7 w-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
               <CheckCircle2 className="h-3.5 w-3.5" />
             </div>
@@ -157,7 +183,7 @@ export default async function DashboardPage() {
 
         <div className="rounded-xl border border-white/[0.07] bg-[#0c101d]/60 p-4 hover-lift backdrop-blur-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">Offers</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-semibold">Offers</span>
             <div className="h-7 w-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
               <Award className="h-3.5 w-3.5" />
             </div>
@@ -179,8 +205,8 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2 space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold tracking-wide uppercase text-zinc-300 font-mono">
-                Recent Jobs & Fit Analyses
+              <h2 className="text-xs font-semibold tracking-wide uppercase text-zinc-300 font-mono">
+                Recent Scraped Opportunities
               </h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
                 {jobs.length} shown
@@ -188,7 +214,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/jobs"
-              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-mono transition-colors"
+              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-mono transition-colors font-semibold"
             >
               Full Ingestion Console <ArrowRight className="h-3 w-3" />
             </Link>
@@ -197,22 +223,27 @@ export default async function DashboardPage() {
           {jobs.length === 0 ? (
             <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-8 text-center space-y-3">
               <Briefcase className="h-8 w-8 text-zinc-600 mx-auto" />
-              <p className="text-sm font-medium text-zinc-300">No job postings ingested yet.</p>
+              <p className="text-sm font-medium text-zinc-300">Belum ada lowongan pekerjaan tersimpan.</p>
               <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-                Paste any job posting URL or raw description to trigger deterministic sanitization and Gemini match scoring.
+                Gunakan tab Pencarian Cepat untuk mengekstrak lowongan dari Glints, LinkedIn, JobStreet, atau website karir perusahaan.
               </p>
               <Link href="/jobs/new" className="inline-block pt-1">
-                <Button variant="glow" size="sm" className="h-8 text-xs">
-                  Ingest First Job
+                <Button variant="glow" size="sm" className="h-8 text-xs font-semibold">
+                  Mulai Pencarian Pertama
                 </Button>
               </Link>
             </div>
           ) : (
             <div className="space-y-2">
               {jobs.map((job) => {
-                const fitAnalysis = job.analyses[0]?.outputJson as any;
-                const fitScore = fitAnalysis?.score;
+                let fitScore: number | undefined;
+                if (job.analyses[0]?.outputJson) {
+                  const raw = job.analyses[0].outputJson as any;
+                  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                  fitScore = parsed?.score;
+                }
                 const app = job.applications[0];
+                const portal = getDashboardPortalBadge(job.sourceHost, job.sourceUrl);
 
                 return (
                   <div
@@ -224,6 +255,12 @@ export default async function DashboardPage() {
                         <h3 className="font-semibold text-sm text-zinc-100 group-hover:text-sky-300 transition-colors truncate">
                           {job.title}
                         </h3>
+
+                        {/* Portal Badge */}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md border font-semibold ${portal.color}`}>
+                          {portal.label}
+                        </span>
+
                         {job.integrityStatus === 'SAFE' ? (
                           <Badge variant="success" className="text-[10px] py-0 px-1.5 h-4 font-mono">
                             Safe
@@ -237,13 +274,14 @@ export default async function DashboardPage() {
                             Rejected
                           </Badge>
                         )}
+
                         {job.sourceUrl && (
                           <a
                             href={job.sourceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-zinc-500 hover:text-sky-400 transition-colors"
-                            title="Open original job posting"
+                            className="text-zinc-500 hover:text-sky-400 transition-colors inline-flex items-center gap-1 text-[10px] font-mono"
+                            title="Buka postingan lowongan kerja asli di tab baru"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>
@@ -318,9 +356,9 @@ export default async function DashboardPage() {
                           </Button>
                         </Link>
                       ) : (
-                        <Link href={`/jobs/${job.id}`}>
+                        <Link href={`/jobs`}>
                           <Button variant="outline" size="sm" className="h-8 text-xs font-mono border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.08]">
-                            Analyze
+                            Review
                           </Button>
                         </Link>
                       )}
@@ -336,7 +374,7 @@ export default async function DashboardPage() {
         <div className="space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold tracking-wide uppercase text-zinc-300 font-mono">
+              <h2 className="text-xs font-semibold tracking-wide uppercase text-zinc-300 font-mono">
                 Active Applications
               </h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
@@ -345,7 +383,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/applications"
-              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-mono transition-colors"
+              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1 font-mono transition-colors font-semibold"
             >
               Board <ArrowRight className="h-3 w-3" />
             </Link>
@@ -354,9 +392,9 @@ export default async function DashboardPage() {
           {applications.length === 0 ? (
             <div className="rounded-xl border border-dashed border-white/[0.1] bg-[#0b0f19]/40 p-6 text-center space-y-2">
               <Kanban className="h-6 w-6 text-zinc-600 mx-auto" />
-              <p className="text-xs font-medium text-zinc-300">No active applications</p>
+              <p className="text-xs font-medium text-zinc-300">Belum ada lamaran aktif</p>
               <p className="text-[11px] text-zinc-500">
-                Create an application workspace from any job to tailor ATS CVs and track stages.
+                Pilih lowongan di halaman tracker dan klik Tailor CV untuk memulai pelacakan tahapan lamaran.
               </p>
             </div>
           ) : (
@@ -394,7 +432,7 @@ export default async function DashboardPage() {
                       Updated {new Date(app.updatedAt).toLocaleDateString()}
                     </span>
                     <Link href={`/applications/${app.id}`}>
-                      <span className="text-xs font-mono text-sky-400 hover:text-sky-300 inline-flex items-center gap-1">
+                      <span className="text-xs font-mono text-sky-400 hover:text-sky-300 inline-flex items-center gap-1 font-semibold">
                         Open Studio →
                       </span>
                     </Link>

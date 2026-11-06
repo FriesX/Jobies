@@ -90,8 +90,9 @@ export function Navbar({ user }: NavbarProps) {
           variant="outline"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="rounded-lg h-8 w-8 text-muted-foreground hover:text-foreground border-white/[0.08] bg-white/[0.02]"
+          className="rounded-lg h-8 w-8 text-muted-foreground hover:text-foreground border-white/[0.08] bg-white/[0.02] cursor-pointer"
           title="Toggle theme"
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
         </Button>
@@ -101,7 +102,7 @@ export function Navbar({ user }: NavbarProps) {
           {user?.avatarUrl ? (
             <img
               src={user.avatarUrl}
-              alt={user.displayName || 'User'}
+              alt={user.displayName || 'User profile'}
               className="h-7 w-7 rounded-full border border-white/10 object-cover ring-1 ring-sky-500/20"
             />
           ) : (
@@ -110,7 +111,7 @@ export function Navbar({ user }: NavbarProps) {
             </div>
           )}
           <div className="hidden sm:block text-left text-xs leading-none">
-            <span className="font-medium block text-foreground tracking-tight text-[12px]">
+            <span className="font-semibold block text-foreground tracking-tight text-[12px]">
               {user?.displayName || 'Job Seeker'}
             </span>
             <span className="text-muted-foreground block text-[10px] mt-0.5 truncate max-w-[130px]">
@@ -123,8 +124,9 @@ export function Navbar({ user }: NavbarProps) {
             size="icon"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 h-7 w-7 rounded-md ml-1"
+            className="text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 h-7 w-7 rounded-md ml-1 cursor-pointer"
             title="Log out"
+            aria-label="Log out of application"
           >
             <LogOut className="h-3.5 w-3.5" />
           </Button>

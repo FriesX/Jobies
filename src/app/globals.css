@@ -27,7 +27,7 @@
   }
 
   .dark {
-    /* Obsidian Precision Palette */
+    /* Obsidian Precision Palette (High Contrast & Deep Space) */
     --background: 224 50% 4%;     /* #080c14 */
     --foreground: 213 31% 94%;     /* #e2e8f0 */
     --card: 224 45% 7%;           /* #0d1322 */
@@ -55,13 +55,24 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    @apply bg-background text-foreground antialiased selection:bg-primary/25 selection:text-primary;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "rlig" 1, "calt" 1;
     letter-spacing: -0.011em;
   }
+
+  /* Accessibility: WCAG 2.2 AAA Focus Outline standard */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary)) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Accessible touch targets & cursor */
+  button, [role="button"], a {
+    cursor: pointer;
+  }
 }
 
-/* Micro-interactions & Tactile Physics (design-taste-frontend standard) */
+/* Micro-interactions & Tactile Physics (design-taste-frontend & ui-ux-pro-max standard) */
 .hover-lift {
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
 }
@@ -113,4 +124,14 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
