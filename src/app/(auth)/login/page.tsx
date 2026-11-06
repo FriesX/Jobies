@@ -2,13 +2,12 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Shield, Lock, FileCheck, ArrowRight, Loader2, ShieldCheck, Cpu } from 'lucide-react';
-import { Button, Card } from '@/components/ui';
+import { Sparkles, Lock, Loader2, ShieldCheck, Cpu } from 'lucide-react';
+import { Button } from '@/components/ui';
 
 export default function LoginPage() {
   const router = useRouter();
   const [loadingGoogle, setLoadingGoogle] = useState(false);
-  const [loadingDemo, setLoadingDemo] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleGoogleLogin = async () => {
@@ -20,38 +19,12 @@ export default function LoginPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setErrorMsg(data.error || 'Google Client ID is not configured yet. You can use Instant Demo Login below.');
+        setErrorMsg(data.error || 'Google authentication is currently unavailable. Please check your configuration.');
       }
     } catch {
-      setErrorMsg('Failed to initiate Google authentication. Try Instant Demo Login.');
+      setErrorMsg('Failed to initiate Google authentication. Please try again.');
     } finally {
       setLoadingGoogle(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setLoadingDemo(true);
-    setErrorMsg('');
-    try {
-      const res = await fetch('/api/auth/demo-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'Demo Career Seeker',
-          email: 'seeker.demo@example.com',
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        router.push('/');
-        router.refresh();
-      } else {
-        setErrorMsg(data.error || 'Demo login failed');
-      }
-    } catch {
-      setErrorMsg('Network error on demo login');
-    } finally {
-      setLoadingDemo(false);
     }
   };
 
@@ -80,7 +53,7 @@ export default function LoginPage() {
           <div className="text-center space-y-1">
             <h2 className="text-base font-semibold text-white">Access Your Career Console</h2>
             <p className="text-xs text-zinc-400">
-              Sign in with your verified Google account or enter via Sandbox Mode.
+              Sign in with your verified Google account.
             </p>
           </div>
 
@@ -94,7 +67,7 @@ export default function LoginPage() {
           <Button
             className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 shadow-md flex items-center justify-center gap-3 font-semibold text-xs tracking-wide transition-all hover-lift"
             onClick={handleGoogleLogin}
-            disabled={loadingGoogle || loadingDemo}
+            disabled={loadingGoogle}
           >
             {loadingGoogle ? (
               <Loader2 className="h-4 w-4 animate-spin text-zinc-800" />
@@ -119,28 +92,6 @@ export default function LoginPage() {
               </svg>
             )}
             <span>Sign In with Google</span>
-          </Button>
-
-          <div className="relative flex items-center justify-center py-1">
-            <div className="border-t border-white/[0.08] w-full" />
-            <span className="bg-[#0c101d] px-2.5 text-[10px] uppercase font-mono tracking-wider text-zinc-500 absolute">
-              Developer Preview
-            </span>
-          </div>
-
-          {/* Instant Demo Login Button */}
-          <Button
-            variant="outline"
-            className="w-full h-10 border border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 text-sky-300 font-mono text-xs flex items-center justify-center gap-2 transition-all hover-lift"
-            onClick={handleDemoLogin}
-            disabled={loadingGoogle || loadingDemo}
-          >
-            {loadingDemo ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-400" />
-            ) : (
-              <ArrowRight className="h-3.5 w-3.5 text-sky-400" />
-            )}
-            <span>Instant Demo Session (1-Click)</span>
           </Button>
         </div>
 
