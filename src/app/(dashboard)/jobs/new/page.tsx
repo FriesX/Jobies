@@ -63,7 +63,7 @@ export default function NewJobPage() {
       const res = await fetch('/api/jobs/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, autoAnalyze: true }),
       });
 
       const data = await res.json();
@@ -71,7 +71,9 @@ export default function NewJobPage() {
       if (!res.ok) {
         setErrorMsg(data.error || 'Failed to ingest job posting.');
       } else {
-        router.push(`/jobs/${data.job.id}`);
+        // Redirect to the High-Density Job Matrix so user immediately sees row with match %
+        router.push('/jobs');
+        router.refresh();
       }
     } catch {
       setErrorMsg('Network error while processing job intake.');

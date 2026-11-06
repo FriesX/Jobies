@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { safeFetchHtml } from '@/lib/security/ssrf';
 import { inspectPostingIntegrity } from '@/lib/security/posting-guard';
-import { recordAuditLog } from '@/lib/quota';
+import { checkAiQuota, logAiUsage, recordAuditLog } from '@/lib/quota';
+import { scrapeJobWithHeadlessBrowser } from '@/lib/scraper';
+import { analyzeJobFit } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -14,13 +15,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { url, rawText, title, company, location } = body;
+    const { url, rawText, title, company, location, autoAnalyze = true } = body;
 
     let contentToInspect = '';
     let resolvedTitle = title || '';
     let resolvedCompany = company || '';
+    let resolvedLocation = location || '';
     let sourceHost: string | null = null;
     let sourceUrl: string | null = null;
+    let isAuthWall = false;
+    let warnings: string[] = [];
 
     if (url) {
       sourceUrl = url;
@@ -31,18 +35,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid URL provided.' }, { status: 400 });
       }
 
-      // Safe fetch with SSRF Shield
-      const fetchedHtml = await safeFetchHtml(url);
-      contentToInspect = fetchedHtml;
+      // Execute Headless Browser Dynamic Scraping
+      const scraped = await scrapeJobWithHeadlessBrowser(url);
+      contentToInspect = scraped.rawText;
+      isAuthWall = scraped.isAuthWall;
+      warnings = scraped.warnings || [];
 
-      // Extract basic title if missing
-      if (!resolvedTitle) {
-        const titleMatch = fetchedHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
-        resolvedTitle = titleMatch ? titleMatch[1].trim() : 'Job Posting from Web';
-      }
-      if (!resolvedCompany) {
-        resolvedCompany = sourceHost;
-      }
+      if (!resolvedTitle) resolvedTitle = scraped.title;
+      if (!resolvedCompany) resolvedCompany = scraped.company;
+      if (!resolvedLocation && scraped.location) resolvedLocation = scraped.location;
     } else if (rawText) {
       contentToInspect = rawText;
       if (!resolvedTitle) resolvedTitle = 'Untitled Opportunity';
@@ -69,6 +70,13 @@ export async function POST(req: NextRequest) {
         userId: session.id,
         contentHash,
       },
+      include: {
+        analyses: {
+          where: { analysisType: 'FIT_ANALYSIS' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
     });
 
     if (existing) {
@@ -87,7 +95,7 @@ export async function POST(req: NextRequest) {
         sourceHost,
         title: resolvedTitle,
         company: resolvedCompany,
-        location: location || null,
+        location: resolvedLocation || null,
         rawText: integrity.cleanedText,
         contentHash,
         integrityStatus: integrity.status,
@@ -99,15 +107,83 @@ export async function POST(req: NextRequest) {
       userId: session.id,
       action: 'INGEST_JOB',
       resourceId: job.id,
-      metadata: { title: job.title, company: job.company, integrityStatus: integrity.status },
+      metadata: {
+        jobId: job.id,
+        sourceUrl,
+        sourceHost,
+        integrityStatus: integrity.status,
+        isAuthWall,
+      },
     });
 
+    // Auto-Run Gemini Fit Analysis if eligible and quota permits
+    let fitAnalysis = null;
+    if (autoAnalyze && job.integrityStatus !== 'REJECTED') {
+      try {
+        const quota = await checkAiQuota(session.id);
+        if (quota.allowed) {
+          // Fetch candidate facts
+          const profile = await prisma.profile.findUnique({
+            where: { userId: session.id },
+          });
+
+          const latestCv = await prisma.document.findFirst({
+            where: { userId: session.id, documentType: 'CV', processingStatus: 'READY' },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          const candidateFacts = `
+Name: ${session.displayName || 'Candidate'}
+Headline: ${profile?.headline || 'Professional'}
+Location: ${profile?.location || 'Not specified'}
+Work Authorization: ${profile?.workAuthorization || 'Not specified'}
+Target Roles: ${profile?.targetRoles?.join(', ') || 'General'}
+Skills: ${profile?.skills?.join(', ') || 'Not specified'}
+Profile Summary: ${profile?.experienceSummary || ''}
+${latestCv?.extractedText ? `\n--- SOURCE CV DOCUMENT (${latestCv.originalFilename}) ---\n${latestCv.extractedText.slice(0, 10000)}` : ''}
+`;
+
+          const analysisResult = await analyzeJobFit({
+            candidateProfile: candidateFacts,
+            jobTitle: job.title,
+            jobCompany: job.company,
+            jobRawText: job.rawText,
+          });
+
+          fitAnalysis = await prisma.aIAnalysis.create({
+            data: {
+              userId: session.id,
+              jobId: job.id,
+              analysisType: 'FIT_ANALYSIS',
+              model: 'gemini-3.8-flash',
+              promptVersion: '1.0.0',
+              inputDocumentIds: latestCv ? [latestCv.id] : [],
+              outputJson: analysisResult as any,
+              status: 'SUCCESS',
+            },
+          });
+
+          await logAiUsage({
+            userId: session.id,
+            actionType: 'FIT_ANALYSIS',
+            inputTokens: Math.ceil(candidateFacts.length / 4) + Math.ceil(job.rawText.length / 4),
+            outputTokens: 500,
+          });
+        }
+      } catch (aiErr: any) {
+        console.error('Auto fit analysis error:', aiErr);
+      }
+    }
+
     return NextResponse.json({
+      success: true,
       job,
-      safetyReport: integrity,
+      fitAnalysis,
+      isAuthWall,
+      warnings,
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Job ingestion failed';
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const message = err instanceof Error ? err.message : 'Failed to ingest job posting.';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
